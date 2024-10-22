@@ -34,7 +34,7 @@ const StoryDisplay: React.FC = () => {
                     };
                     const voices = window.speechSynthesis.getVoices()
                     if (voices && voices.length>0){
-                        utterance.voice = voices.find(voice => voice.name === 'Google US English Female' && voice.lang === 'en-US') || voices[1];
+                        utterance.voice = voices.find(voice => voice.name === 'Google US English Female' && voice.lang === 'en-US') || voices[2];
                     }
                     speechSynthesis.speak(utterance); // Correct placement. Speak is called only once.
                 });

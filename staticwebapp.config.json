@@ -1,0 +1,17 @@
+{
+    "routes": [
+
+        {
+            "route": "/api/*", 
+            "methods": ["GET", "POST"]
+        }
+
+
+
+    ],
+    "navigationFallback": {
+        "rewrite": "/index.html"
+      }
+
+
+}
