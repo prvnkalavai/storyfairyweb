@@ -1,17 +1,14 @@
 {
     "routes": [
-
         {
             "route": "/api/*", 
             "methods": ["GET", "POST"]
         }
-
-
-
     ],
+    "platform": {
+          "apiRuntime": "python:3.10"
+        },
     "navigationFallback": {
         "rewrite": "/index.html"
       }
-
-
 }
