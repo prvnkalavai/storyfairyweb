@@ -24,7 +24,7 @@ const StoryGenerator: React.FC<StoryGeneratorProps> = () => {
             // Use /api/GenerateStory for Azure Static Web Apps. 
             // Use http://localhost:7071/api/GenerateStory for local testing
             const localDev = hostname === "localhost"
-            const apiUrl = localDev ? 'https://storyfairy.azurewebsites.net/api/GenerateStory?code=rlXBvedINvT60SOIc3PdMAj_mzidNoeFITTdgZ0f4cSnAzFu8aE94A==' : '/api/GenerateStory';
+            const apiUrl = localDev ? 'http://localhost:7071/api/GenerateStory' : '/api/GenerateStory';
             console.log("API Endpoint: ", apiUrl);
             console.log("Topic: ", topic);
             console.log("Story Length: ", storyLength);
