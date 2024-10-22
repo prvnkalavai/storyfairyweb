@@ -1,0 +1,15 @@
+{
+  "$schema": "https://aka.ms/azure/static-web-apps-cli/schema",
+  "configurations": {
+    "staging": {
+      "appLocation": ".",
+      "apiLocation": "api",
+      "outputLocation": "build",
+      "apiLanguage": "python",
+      "apiVersion": "3.11.9",
+      "appBuildCommand": "npm run build",
+      "run": "npm start",
+      "appDevserverUrl": "http://localhost:3000"
+    }
+  }
+}
