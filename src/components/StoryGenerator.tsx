@@ -24,18 +24,22 @@ const StoryGenerator: React.FC<StoryGeneratorProps> = () => {
             // Use /api/GenerateStory for Azure Static Web Apps. 
             // Use http://localhost:7071/api/GenerateStory for local testing
             const localDev = hostname === "localhost"
-            const apiUrl = localDev ? 'http://localhost:7071/api/GenerateStory' : '/api/GenerateStory';
+            const apiUrl = localDev ? `https://storyfairy.azurewebsites.net/api/GenerateStory?code=${process.env.REACT_APP_FUNCTION_KEY}` : '/api/GenerateStory';
+            const headers = {
+                'Content-Type': 'application/json'
+              };
+              
             console.log("API Endpoint: ", apiUrl);
             console.log("Topic: ", topic);
             console.log("Story Length: ", storyLength);
             console.log("Image Style: ", imageStyle);
-
-            const response = await fetch(apiUrl, { 
+              
+            const response = await fetch(apiUrl, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ topic: topic||'""', storyLength, imageStyle }), // Include all parameters
+                headers,
+                body: JSON.stringify({ topic: topic || '""', storyLength, imageStyle }),
             });
-
+                        
             if (!response.ok) {
                 const errorText = await response.text();
                 try{
@@ -53,16 +57,9 @@ const StoryGenerator: React.FC<StoryGeneratorProps> = () => {
 
         } catch (error) {
             console.error('Error:', error);
-            if (error instanceof Error) { // Check if it's an Error object and then set message. 
-                setError(error.message);
-            } else if (typeof error === 'string') { // If error itself is a string, set that directly. This handles error responses that are just strings.
-                setError(error)
-            } else{ //# If something unexpected happens and error is of an unknown type.
-                setError("An unexpected error occurred.") //# Set a generic error message.
-            }
+            setError(error instanceof Error ? error.message : 'An unexpected error occurred.');
         }finally {
             setIsLoading(false); // Set loading to false after request finishes, irrespective of success or failure. Enable the button.
-
         }
     };
 

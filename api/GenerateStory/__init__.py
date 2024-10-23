@@ -203,7 +203,7 @@ def generate_image_stable_diffusion(prompt,reference_image_url=None):
         "steps": 28,
         "prompt": prompt,
         "aspect_ratio": "1:1",
-        "output_quality": 90,
+        "output_quality": 100,
         "negative_prompt": "ugly, blurry, distorted, text, watermark",
         "prompt_strength": 0.85,
         "scheduler": "K_EULER_ANCESTRAL",
@@ -234,7 +234,7 @@ def generate_image_flux_schnell(prompt):
                 "go_fast": True,
                 "megapixels": "1",
                 "num_outputs": 1,
-                "output_quality": 80,
+                "output_quality": 100,
                 "num_inference_steps": 4
                 }                
             )
@@ -289,6 +289,54 @@ def construct_detailed_prompt(sentence, image_style="whimsical"):
     prompt = f"{sentence}, {image_style} style, children's book illustration, vibrant colors"
     return prompt, None
 
+def get_secrets():
+    """Get secrets from either Key Vault or environment variables"""
+    openai_key = None
+    gemini_key = None
+    replicate_token = None
+    storage_conn = None
+    account_key = None
+    try:
+        # Attempt to retrieve from Key Vault first (best practice)
+        key_vault_uri = os.environ.get("KEY_VAULT_URI") # Get Key Vault URI
+        if key_vault_uri:  # Only attempt Key Vault access if URI is available
+            logging.info("Attempting to fetch secrets from Key Vault")
+
+            if os.environ.get("AZURE_FUNCTIONS_ENVIRONMENT") == "Development": # For local dev, authenticate using logged in user with az login
+               credential = DefaultAzureCredential()
+            else:
+               credential = DefaultAzureCredential() # For Azure, no credentials needed since function app will use Managed Identity
+
+            client = SecretClient(vault_url=key_vault_uri, credential=credential)
+            openai_key = client.get_secret("openai-api-key").value
+            gemini_key = client.get_secret("gemini-api-key").value
+            replicate_token = client.get_secret("replicate-api-token").value
+            storage_conn = client.get_secret("storage-connection-string").value
+            account_key = client.get_secret("account-key").value
+           
+            logging.info("Secrets successfully fetched from Key Vault") # Add logging for successful fetch.
+        else:
+            logging.warning("Key Vault URI not found. Falling back to environment variables.")
+
+        # Fallback to environment variables ONLY if Key Vault access fails or Key Vault URI is not set
+        if not all([openai_key, gemini_key, replicate_token, storage_conn, account_key]):
+            logging.warning("Some secrets not found in Key Vault. Checking for environment variables")
+            openai_key = openai_key or os.environ.get("OPENAI_API_KEY") # Assign from env variables
+            gemini_key = gemini_key or os.environ.get("GEMINI_API_KEY")
+            replicate_token = replicate_token or os.environ.get("REPLICATE_API_TOKEN")
+            storage_conn = storage_conn or os.environ.get("STORAGE_CONNECTION_STRING")
+            account_key = account_key or os.environ.get("ACCOUNT_KEY")
+
+
+        if not all([openai_key, gemini_key, replicate_token, storage_conn, account_key]):
+            raise ValueError("Required secrets not found in environment variables or Key Vault")
+
+        return openai_key, gemini_key, replicate_token, storage_conn, account_key
+
+    except Exception as e:
+        logging.exception(f"Error getting secrets: {e}") # Log the exception
+        raise
+
 async def main(req: func.HttpRequest) -> func.HttpResponse:
     logging.info('############### Python HTTP trigger function processed a request.################')
 
@@ -298,17 +346,11 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
             
         else:  # Azure environment
             logging.info("#################Using Managed Identity authentication. #################")
-            
-        key_vault_uri = os.environ["KEY_VAULT_URI"]
-        credential = DefaultAzureCredential()
-        client = SecretClient(vault_url=key_vault_uri, credential=credential)
-        openai.api_key = client.get_secret("openai-api-key").value
-        GEMINI_API_KEY = client.get_secret("gemini-api-key").value
-        REPLICATE_API_TOKEN = client.get_secret("replicate-api-token").value
-        os.environ["REPLICATE_API_TOKEN"] = REPLICATE_API_TOKEN
-        STORAGE_CONNECTION_STRING = client.get_secret("storage-connection-string").value
-        ACCOUNT_KEY = client.get_secret("account-key").value
-        
+
+        openai_api_key, GEMINI_API_KEY, REPLICATE_API_TOKEN, STORAGE_CONNECTION_STRING, ACCOUNT_KEY = get_secrets()
+        openai.api_key = openai_api_key
+        os.environ["REPLICATE_API_TOKEN"] = REPLICATE_API_TOKEN 
+
         topic = req.params.get('topic')
         story_length = req.params.get('storyLength', 'short')
         image_style = req.params.get('imageStyle', 'whimsical')
@@ -418,9 +460,13 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
             mimetype="application/json",
             status_code=200
         )
+    except ValueError as ve:
+        logging.exception(f"Configuration error: {ve}")
+        return func.HttpResponse("Error retrieving secrets. Check Function App Logs and/or application settings",
+            status_code=500
+        )
     except Exception as e:
         logging.exception("An error occurred: %s", e)
-        return func.HttpResponse(
-            "An error occurred while processing your request.",
+        return func.HttpResponse("Error during function execution. Check Function App logs.",
             status_code=500
-    )
+        )
