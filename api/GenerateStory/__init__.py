@@ -2,63 +2,59 @@ import logging
 import os
 import json
 from datetime import datetime, timedelta
-import time
+import asyncio
 import uuid
 import azure.functions as func
 from azure.storage.blob import BlobServiceClient, ContentSettings, generate_blob_sas, BlobSasPermissions, __version__
 from azure.identity import DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
 import openai
-import requests
+import aiohttp
 import replicate
 from dotenv import load_dotenv
 import pytz
 import google.generativeai as genai
+from concurrent.futures import ThreadPoolExecutor
 
 load_dotenv()
 
-STORY_CONTAINER_NAME = "storyfairy-stories" # Container for Stories
-IMAGE_CONTAINER_NAME = "storyfairy-images" # Container for Images
+STORY_CONTAINER_NAME = "storyfairy-stories" 
+IMAGE_CONTAINER_NAME = "storyfairy-images" 
 
-def generate_story_openai(topic, api_key, story_length):
+async def generate_story_openai(topic, api_key, story_length):
     try:
         client = openai.OpenAI(api_key=api_key)
         prompt = create_story_prompt(topic, story_length)
         response = client.chat.completions.create(
-            model="gpt-4o-mini",  # Or a suitable model
+            model="gpt-4o-mini",  
             messages=[
                 {"role": "system", "content": "You are a creative storyteller for children."},
                 {"role": "user", "content": prompt}
             ],
             max_tokens=350
         )
-        #story = response.choices[0].message.content
-        #return story
         logging.info(f"Raw response from OpenAI: {response.choices[0].message.content}")
         story, sentences = parse_story_json(response.choices[0].message.content.strip())
         logging.info(f"Parsed JSON story: {story}")
-        return story, sentences       
-        
-    except (openai.OpenAIError, requests.exceptions.RequestException) as e: # Catch OpenAI errors
-        logging.error(f"OpenAI API error: {e}")
-        return None
+        return story, sentences
+    except Exception as e:
+        logging.error(f"OpenAI error: {e}")
+        return None, None
     
-def generate_story_gemini(topic, api_key, story_length):
+async def generate_story_gemini(topic, api_key, story_length):
     try:
-        Gemini_api_key = api_key
-        genai.configure(api_key=Gemini_api_key)
+        genai.configure(api_key=api_key)
         prompt = create_story_prompt(topic, story_length)
-        model = genai.GenerativeModel('gemini-1.5-flash') # or 'gemini-pro'
+        model = genai.GenerativeModel('gemini-1.5-flash') 
         response = model.generate_content(prompt)
         logging.info(f"Raw response from Gemini: {response.text}")
         story, sentences = parse_story_json(response.text.strip())
         logging.info(f"Parsed JSON story: {story}")
         return story, sentences
-    
     except Exception as e:
         logging.error(f"Gemini error: {e}")
-        return None   
-
+        return None, None
+ 
 def create_story_prompt(topic, story_length="short"):
     """Creates the story prompt based on whether a topic is provided or not."""
     sentence_count = { "short": 5, "medium": 7, "long": 9}
@@ -121,10 +117,8 @@ def create_story_prompt(topic, story_length="short"):
 
 def parse_story_json(story_response):
     try:
-        story_json = json.loads(story_response)  # Directly parse
+        story_json = json.loads(story_response)  
         raw_sentences = story_json['sentences']
-
-        # Validate and clean sentences (important)
         sentences = []
         for sentence in raw_sentences:
             cleaned_sentence = sentence.strip()
@@ -138,11 +132,7 @@ def parse_story_json(story_response):
             return None, None
 
         story = ' '.join(sentences)  # Use space as separator for simplified story
-
-
         return story, sentences # Return both complete story and list of sentences
-
-
     except (json.JSONDecodeError, KeyError, TypeError) as e:  # Handle JSON and KeyError if sentences is not present
         logging.error(f"Invalid or empty JSON response: {story_response}")
         logging.error(f"JSON parsing error: {e}")  # Log the specific exception
@@ -197,7 +187,7 @@ def generate_reference_image(character_description):
         logging.error(f"Error generating reference image: {e}")
         return None
 
-def generate_image_stable_diffusion(prompt,reference_image_url=None):
+async def generate_image_stable_diffusion(prompt,reference_image_url=None):
     input_params = {
         "cfg": 7,
         "steps": 28,
@@ -213,34 +203,40 @@ def generate_image_stable_diffusion(prompt,reference_image_url=None):
     if reference_image_url:
         input_params["image"] = reference_image_url
     try:
-        output = replicate.run(
-           "stability-ai/stable-diffusion-3",  # Stable Diffusion model
-            input=input_params
+        output = await asyncio.get_event_loop().run_in_executor(
+            None,
+            lambda: replicate.run(
+                "stability-ai/stable-diffusion-3",
+                input=input_params
+            )
         )
-        image_url = output[0] # Get first element of returned list which is the URL
-        logging.info(f"Generated image (Stable Diffusion): {image_url}")  # Log generated URL
-        return image_url, prompt  # Return URL and prompt
+        image_url = output[0] 
+        logging.info(f"Generated image (Stable Diffusion): {image_url}")  
+        return image_url, prompt  
     except Exception as e:
         logging.error(f"Stable Diffusion error: {e}")
-        return None, prompt # Return None for URL and the prompt
+        return None, prompt 
 
-def generate_image_flux_schnell(prompt):
+async def generate_image_flux_schnell(prompt):
     try:
-        output = replicate.run(
-            "black-forest-labs/flux-schnell",  # Flux Schnell model
-            input={
-                "prompt": prompt,
-                "aspect_ratio": "1:1",
-                "go_fast": True,
-                "megapixels": "1",
-                "num_outputs": 1,
-                "output_quality": 100,
-                "num_inference_steps": 4
-                }                
+        output = await asyncio.get_event_loop().run_in_executor(
+            None,
+            lambda: replicate.run(
+                "black-forest-labs/flux-schnell",
+                input={
+                    "prompt": prompt,
+                    "aspect_ratio": "1:1",
+                    "go_fast": True,
+                    "megapixels": "1",
+                    "num_outputs": 1,
+                    "output_quality": 100,
+                    "num_inference_steps": 4
+                }
             )
+        )
         image_url = output[0]
-        logging.info(f"Generated image (Flux Schnell): {image_url}")  # Log the generated image URL
-        return image_url, prompt  # Return URL and prompt
+        logging.info(f"Generated image (Flux Schnell): {image_url}")  
+        return image_url, prompt  
     except Exception as e:
         logging.error(f"Flux Schnell error: {e}")
         return None, prompt
@@ -296,6 +292,8 @@ def get_secrets():
     replicate_token = None
     storage_conn = None
     account_key = None
+    account_name = None
+
     try:
         # Attempt to retrieve from Key Vault first (best practice)
         key_vault_uri = os.environ.get("KEY_VAULT_URI") # Get Key Vault URI
@@ -313,6 +311,7 @@ def get_secrets():
             replicate_token = client.get_secret("replicate-api-token").value
             storage_conn = client.get_secret("storage-connection-string").value
             account_key = client.get_secret("account-key").value
+            account_name = client.get_secret("account-name").value
            
             logging.info("Secrets successfully fetched from Key Vault") # Add logging for successful fetch.
         else:
@@ -326,147 +325,176 @@ def get_secrets():
             replicate_token = replicate_token or os.environ.get("REPLICATE_API_TOKEN")
             storage_conn = storage_conn or os.environ.get("STORAGE_CONNECTION_STRING")
             account_key = account_key or os.environ.get("ACCOUNT_KEY")
+            account_name = account_name or os.environ.get("ACCOUNT_NAME")
 
 
         if not all([openai_key, gemini_key, replicate_token, storage_conn, account_key]):
             raise ValueError("Required secrets not found in environment variables or Key Vault")
 
-        return openai_key, gemini_key, replicate_token, storage_conn, account_key
+        return openai_key, gemini_key, replicate_token, storage_conn, account_key, account_name
 
     except Exception as e:
         logging.exception(f"Error getting secrets: {e}") # Log the exception
         raise
 
-async def main(req: func.HttpRequest) -> func.HttpResponse:
-    logging.info('############### Python HTTP trigger function processed a request.################')
-
-    try:
-        if os.environ.get("AZURE_FUNCTIONS_ENVIRONMENT") is None: # Check if development environment
-            logging.info("################# Using local authentication #################")
-            
-        else:  # Azure environment
-            logging.info("#################Using Managed Identity authentication. #################")
-
-        openai_api_key, GEMINI_API_KEY, REPLICATE_API_TOKEN, STORAGE_CONNECTION_STRING, ACCOUNT_KEY = get_secrets()
-        openai.api_key = openai_api_key
-        os.environ["REPLICATE_API_TOKEN"] = REPLICATE_API_TOKEN 
-
-        topic = req.params.get('topic')
-        story_length = req.params.get('storyLength', 'short')
-        image_style = req.params.get('imageStyle', 'whimsical')
+async def generate_images_parallel(sentences, story_title, image_style, connection_string, account_key, account_name):
+    async with aiohttp.ClientSession() as session:
+        tasks = []
+        for i, sentence in enumerate(sentences):
+            task = asyncio.create_task(process_single_image(
+                session, sentence, i, story_title, image_style, 
+                connection_string, account_key, account_name
+            ))
+            tasks.append(task)
         
-        if not topic:  # Check if the topic is missing in query parameters
+        return await asyncio.gather(*tasks)
+
+async def process_single_image(session, sentence, index, story_title, image_style, connection_string, account_key, account_name):
+    detailed_prompt, _ = construct_detailed_prompt(sentence, image_style)
+    
+    # Try Flux Schnell first (faster)
+    image_url, prompt = await generate_image_flux_schnell(detailed_prompt)
+    if not image_url:
+        # Fallback to Stable Diffusion
+        image_url, prompt = await generate_image_stable_diffusion(detailed_prompt)
+        if not image_url:
+            return None
+    
+    try:
+        async with session.get(image_url) as response:
+            image_data = await response.read()
+            image_filename = f"{story_title}-image{index+1}.png"
+            
+            # Use ThreadPoolExecutor for blob storage operations
+            with ThreadPoolExecutor() as executor:
+                saved_image_url = await asyncio.get_event_loop().run_in_executor(
+                    executor,
+                    save_to_blob_storage,
+                    image_data, "image/jpeg", IMAGE_CONTAINER_NAME, 
+                    image_filename, connection_string
+                )
+                
+                if saved_image_url:
+                    sas_token = await asyncio.get_event_loop().run_in_executor(
+                        executor,
+                        generate_sas_token,
+                        account_name, account_key, IMAGE_CONTAINER_NAME,
+                        image_filename, "2022-11-02"
+                    )
+                    
+                    sas_url = f"{saved_image_url}?{sas_token}"
+                    return {"imageUrl": sas_url, "prompt": prompt}
+                    
+    except Exception as e:
+        logging.error(f"Error processing image {index+1}: {e}")
+        return None
+
+async def main(req: func.HttpRequest) -> func.HttpResponse:
+    try:
+        # Get secrets (existing code)
+        openai_api_key, GEMINI_API_KEY, REPLICATE_API_TOKEN, STORAGE_CONNECTION_STRING, ACCOUNT_KEY, ACCOUNT_NAME = get_secrets()
+        openai.api_key = openai_api_key
+        os.environ["REPLICATE_API_TOKEN"] = REPLICATE_API_TOKEN
+        
+        # Get topic from either query params or request body
+        topic = req.params.get('topic') 
+        # If not in params, check request body
+        if topic is None:  # Explicitly check for None to allow empty string
             try:
-                req_body = req.get_json() # Check if topic is in request body
-                if req_body: # Check if request body is empty
-                    topic = req_body.get('topic')  # Try to get the topic from the request body
-                    story_length= req_body.get('storyLength', 'short')
-                    image_style= req_body.get('imageStyle', 'whimsical')
+                req_body = req.get_json()
+                topic = req_body.get('topic')
             except ValueError:
-                pass
+                return func.HttpResponse(
+                    json.dumps({"error": "No topic provided. Request must include a 'topic' parameter or field (can be empty string for random story)"}),
+                    mimetype="application/json",
+                    status_code=400
+                )
+        
+        # If still None after checking both places, return error
         if topic is None:
-            # Do nothing and return to wait for topic from frontend. No need to generate random story here. 
-            return func.HttpResponse("Waiting for topic input...", status_code=400) 
-        topic = str(topic).strip() 
-        story, sentences = generate_story_gemini(topic, GEMINI_API_KEY, story_length) 
-        if story is None: # Check if gemini story generation failed
-            story, sentences = generate_story_openai(topic, openai.api_key, story_length)  # Gemini fallback
-            if story is None: # If openai also fails
-                return func.HttpResponse("Failed to generate story using OpenAI and Gemini", status_code=500)
+            return func.HttpResponse(
+                json.dumps({"error": "No topic provided. Request must include a 'topic' parameter or field (can be empty string for random story)"}),
+                mimetype="application/json",
+                status_code=400
+            )
+
+        # Get other parameters with defaults
+        story_length = req.params.get('storyLength', 'short')
+        if not story_length:
+            try:
+                req_body = req.get_json()
+                story_length = req_body.get('storyLength', 'short')
+            except ValueError:
+                story_length = 'short'
+
+        image_style = req.params.get('imageStyle', 'whimsical')
+        if not image_style:
+            try:
+                req_body = req.get_json()
+                image_style = req_body.get('imageStyle', 'whimsical')
+            except ValueError:
+                image_style = 'whimsical'
+
+        # Generate story using Gemini (faster) with fallback to OpenAI
+        story, sentences = await generate_story_gemini(topic, GEMINI_API_KEY, story_length)
+        if not story:
+            story, sentences = await generate_story_openai(topic, openai_api_key, story_length)
+            if not story:
+                return func.HttpResponse("Failed to generate story", status_code=500)
+
+        # Generate story title and filenames
+        story_title = topic.replace(' ', '_') if topic and topic != '""' else str(uuid.uuid4())
+        simplified_story_filename = f"{story_title}.txt"
+        detailed_story_filename = f"{story_title}_detailed.txt"
+
+        # Simplify story
+        simplified_story = simplify_story(story, openai_api_key)
+
+        # Save stories to blob storage in parallel
+        with ThreadPoolExecutor() as executor:
+            simplified_future = executor.submit(
+                save_to_blob_storage, 
+                simplified_story, "text/plain", 
+                STORY_CONTAINER_NAME, 
+                simplified_story_filename, 
+                STORAGE_CONNECTION_STRING
+            )
+            detailed_future = executor.submit(
+                save_to_blob_storage,
+                story, "text/plain",
+                STORY_CONTAINER_NAME,
+                detailed_story_filename,
+                STORAGE_CONNECTION_STRING
+            )
             
-        simplified_story = simplify_story(story, openai.api_key)  # Simplify the story for presentation
-        logging.info(f"Topic (before check): Value: '{topic}', Type: {type(topic)}")
-        if not topic or topic == '""':
-            logging.info("Topic is null. Generating a random file name")
-            story_title=str(uuid.uuid4())
-            simplified_story_filename =story_title + ".txt"
-            detailed_story_filename = story_title + "_detailed.txt"
-        else:
-            logging.info(f"Using provided topic for the file name: {topic}")
-            story_title=topic.replace(' ', '_')
-            simplified_story_filename = f"{topic.replace(' ', '_')}.txt" # Meaningful story filename
-            detailed_story_filename = f"{topic.replace(' ', '_')}_detailed.txt" # Separate file name for detailed story
-        simplified_story_url = save_to_blob_storage(simplified_story, "text/plain", STORY_CONTAINER_NAME, simplified_story_filename, STORAGE_CONNECTION_STRING)
-        detailed_story_url = save_to_blob_storage(story, "text/plain", STORY_CONTAINER_NAME, detailed_story_filename, STORAGE_CONNECTION_STRING)
-        if simplified_story_url is None: # Handle story upload failure
-            return func.HttpResponse("Failed to upload story to blob storage", status_code=500)
-        if detailed_story_url is None: # Handle Detailed story upload failure
-            return func.HttpResponse("Failed to upload Detailed story to blob storage", status_code=500)
-            
-            #story_json = json.loads(story) # Load detailed story, which is a json string into python dict
-            #sentences = story_json.get("sentences", []) # Get the list of sentences from the dictionary
-        response_data = {  # Initialize response data here
-            "storyText": simplified_story,
+            simplified_story_url = simplified_future.result()
+            detailed_story_url = detailed_future.result()
+
+        if not all([simplified_story_url, detailed_story_url]):
+            return func.HttpResponse("Failed to upload stories to blob storage", status_code=500)
+
+        # Generate images in parallel
+        image_results = await generate_images_parallel(
+            sentences, story_title, image_style,
+            STORAGE_CONNECTION_STRING, ACCOUNT_KEY, ACCOUNT_NAME
+        )
+
+        # Prepare response
+        response_data = {
+            "StoryText": simplified_story,
             "storyUrl": simplified_story_url,
             "detailedStoryUrl": detailed_story_url,
-            "images": [],
+            "images": [result for result in image_results if result],
             "imageContainerName": IMAGE_CONTAINER_NAME,
             "blobStorageConnectionString": STORAGE_CONNECTION_STRING
         }
-           
-        image_urls = []
-        image_prompts = []
-
-        if sentences:
-            for i, sentence in enumerate(sentences):  # Iterate through ALL sentences
-                logging.info('################ Entering construct_detailed_prompt() Function ################')
-                detailed_prompt, _ = construct_detailed_prompt(sentence, image_style) # Create detailed prompt, _ for unused reference image url
-            
-                logging.info('################ Entering generate_image_stable_diffusion() Function ################')
-                image_url, prompt = generate_image_flux_schnell(detailed_prompt) # No reference image available
-                if image_url is None:  # Stable Diffusion fallback
-                    image_url, prompt = generate_image_stable_diffusion(detailed_prompt) 
-                    if image_url is None: # If flux schnell also fails
-                        logging.error(f"Failed to generate image for prompt: {prompt}") # Log the failing prompt
-                        continue # Skip this sentence and move to next one.
-                image_urls.append(image_url)
-                image_prompts.append(prompt)
-                time.sleep(1)
-
-        else: # If sentences list is empty or None
-            return func.HttpResponse("Error processing the story. Please try again.", status_code=500)
-            
-        for i, image_url in enumerate(image_urls):
-            try:
-                image_response = requests.get(image_url)  # Get the actual URL from the list returned by replicate
-                image_response.raise_for_status() # Raise an exception for HTTP errors (4xx or 5xx)
-                image_data = image_response.content
-                image_filename = f"{story_title}-image{i+1}.png" # Updated image file name
-                saved_image_url = save_to_blob_storage(image_data, "image/jpeg", IMAGE_CONTAINER_NAME, image_filename, STORAGE_CONNECTION_STRING) # Pass file_name
-
-                if saved_image_url: # Check if upload was successful
-                    sas_token = generate_sas_token(
-                        account_name="rgstoryfairya7d9",
-                        account_key=ACCOUNT_KEY,
-                        container_name=IMAGE_CONTAINER_NAME,
-                        blob_name=image_filename,
-                        api_version="2022-11-02"
-                    )
-                    sas_url = f"{saved_image_url}?{sas_token}"
-                    response_data["images"].append({
-                        "imageUrl": sas_url,
-                        "prompt": image_prompts[i]
-                    })
-                    logging.info(f"Generated image {i+1} URL: {saved_image_url}")
-                    logging.info(f"Prompt used for image {i+1}: {image_prompts[i]}")  # Log prompt with image URL
-                    
-            except requests.exceptions.RequestException as e:
-                logging.error("Error downloading image: %s", e)
-            except Exception as e:
-                logging.error("Error saving image %s to blob storage: %s", i+1, e)
 
         return func.HttpResponse(
-            json.dumps(response_data, default=str),  # Return grouped image URLs and prompts
+            json.dumps(response_data, default=str),
             mimetype="application/json",
             status_code=200
         )
-    except ValueError as ve:
-        logging.exception(f"Configuration error: {ve}")
-        return func.HttpResponse("Error retrieving secrets. Check Function App Logs and/or application settings",
-            status_code=500
-        )
+
     except Exception as e:
-        logging.exception("An error occurred: %s", e)
-        return func.HttpResponse("Error during function execution. Check Function App logs.",
-            status_code=500
-        )
+        logging.exception(f"Error: {e}")
+        return func.HttpResponse(f"Error during execution: {str(e)}", status_code=500)

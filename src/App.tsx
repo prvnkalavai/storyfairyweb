@@ -8,7 +8,7 @@ import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { blue, pink } from '@mui/material/colors';
 
 export interface StoryData {
-  storyText: string;
+  StoryText: string;
   storyUrl: string;
   detailedStoryUrl: string;
   images: { imageUrl: string; prompt: string }[];

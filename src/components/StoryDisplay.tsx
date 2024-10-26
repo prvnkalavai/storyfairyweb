@@ -19,7 +19,7 @@ const StoryDisplay: React.FC = () => {
             }
 
             // Create a single utterance for the entire story
-            const utterance = new SpeechSynthesisUtterance(storyData.storyText); // Correct text to use.
+            const utterance = new SpeechSynthesisUtterance(storyData.StoryText); // Correct text to use.
             speechSynthesis.cancel();
             try {
                 await new Promise<void>((resolve, reject) => {       
@@ -91,9 +91,7 @@ const StoryDisplay: React.FC = () => {
     }));
     return (
         <Box sx={{ flexGrow: 1, padding: '20px', justifyContent: 'center', alignItems: 'center' }}> {/* Center content */}
-            <Typography variant="h4" component="h1" gutterBottom align="center">
-                {storyData.storyText}
-            </Typography>
+            
             <Slider {...sliderSettings}> {/* Use Slider component from react-slick */}
                 {storyData.images.map((image, index) => (
                     <div key={index}> {/* Important: Wrap each slide in a div */}
@@ -111,6 +109,9 @@ const StoryDisplay: React.FC = () => {
                     </div>
                 ))}
             </Slider>
+            <Typography variant="h4" component="h1" gutterBottom align="center">
+                {storyData.StoryText}
+            </Typography>
             <Button variant="contained" color="primary" onClick={handleGenerateNewStory}>
                 Generate New Story
             </Button>
