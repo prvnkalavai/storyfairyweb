@@ -49,7 +49,7 @@ const StoryDisplay = () => {
       if (utteranceRef.current) {
         utteranceRef.current.text = storyData.StoryText as string;
         const voices = window.speechSynthesis.getVoices();
-        utteranceRef.current.voice = voices.find(voice => voice.name === 'Google US English Female') || voices[0];
+        utteranceRef.current.voice = voices.find(voice => voice.name === 'Google US English Female') || voices[1];
         window.speechSynthesis.speak(utteranceRef.current);
         setIsPlaying(true);
       }
@@ -130,13 +130,15 @@ const StoryDisplay = () => {
   };
 
   const sliderSettings = {
+    currentSlide,
     dots: true,
     infinite: false,
     speed: 500,
     slidesToShow: 1,
     slidesToScroll: 1,
     adaptiveHeight: true,
-    beforeChange: (_: any, next: React.SetStateAction<number>) => setCurrentSlide(next)
+    beforeChange: (_: any, next: React.SetStateAction<number>) => setCurrentSlide(next)   
+    
   };
 
   return (
@@ -164,7 +166,6 @@ const StoryDisplay = () => {
           Share Story
         </Button>
       </div>
-
       <Slider ref={sliderRef} {...sliderSettings}>
         {storyData.images.map((image: { imageUrl: string | undefined; }, index: number) => (
           <div key={index} className="p-4">
