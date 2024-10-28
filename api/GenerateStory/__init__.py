@@ -341,53 +341,48 @@ async def generate_images_parallel(sentences, story_title, image_style, connecti
     async with aiohttp.ClientSession() as session:
         tasks = []
         for i, sentence in enumerate(sentences):
-            task = asyncio.create_task(process_single_image(
-                session, sentence, i, story_title, image_style, 
-                connection_string, account_key, account_name
-            ))
-            tasks.append(task)
-        
-        return await asyncio.gather(*tasks)
 
-async def process_single_image(session, sentence, index, story_title, image_style, connection_string, account_key, account_name):
-    detailed_prompt, _ = construct_detailed_prompt(sentence, image_style)
-    
-    # Try Flux Schnell first (faster)
-    image_url, prompt = await generate_image_flux_schnell(detailed_prompt)
-    if not image_url:
-        # Fallback to Stable Diffusion
-        image_url, prompt = await generate_image_stable_diffusion(detailed_prompt)
-        if not image_url:
-            return None
-    
-    try:
-        async with session.get(image_url) as response:
-            image_data = await response.read()
-            image_filename = f"{story_title}-image{index+1}.png"
+            detailed_prompt, _ = construct_detailed_prompt(sentence, image_style)
+            async def generate_and_save_image(prompt,index):
+                image_url,prompt_used = await generate_image_flux_schnell(prompt)
+                if not image_url:
+                    image_url,prompt_used = await generate_image_stable_diffusion(prompt)
+                    if not image_url:
+                        return None
+                try:
+                    async with session.get(image_url) as response:
+                        image_data = await response.read()
+                        image_filename = f"{story_title}-image{index+1}.png"
             
-            # Use ThreadPoolExecutor for blob storage operations
-            with ThreadPoolExecutor() as executor:
-                saved_image_url = await asyncio.get_event_loop().run_in_executor(
-                    executor,
-                    save_to_blob_storage,
-                    image_data, "image/jpeg", IMAGE_CONTAINER_NAME, 
-                    image_filename, connection_string
-                )
+                        # Use ThreadPoolExecutor for blob storage operations
+                        with ThreadPoolExecutor() as executor:
+                            saved_image_url = await asyncio.get_event_loop().run_in_executor(
+                                executor,
+                                save_to_blob_storage,
+                                image_data, "image/jpeg", IMAGE_CONTAINER_NAME, 
+                                image_filename, connection_string
+                            )
                 
-                if saved_image_url:
-                    sas_token = await asyncio.get_event_loop().run_in_executor(
-                        executor,
-                        generate_sas_token,
-                        account_name, account_key, IMAGE_CONTAINER_NAME,
-                        image_filename, "2022-11-02"
-                    )
+                            if saved_image_url:
+                                sas_token = await asyncio.get_event_loop().run_in_executor(
+                                    executor,
+                                    generate_sas_token,
+                                    account_name, account_key, IMAGE_CONTAINER_NAME,
+                                    image_filename, "2022-11-02"
+                            )
                     
-                    sas_url = f"{saved_image_url}?{sas_token}"
-                    return {"imageUrl": sas_url, "prompt": prompt}
-                    
-    except Exception as e:
-        logging.error(f"Error processing image {index+1}: {e}")
-        return None
+                                sas_url = f"{saved_image_url}?{sas_token}"
+                                return {"imageUrl": sas_url, "prompt": prompt}
+                
+                except Exception as e:
+                    logging.error(f"Error processing images : {e}")
+            tasks.append(generate_and_save_image(detailed_prompt, i))
+        results=await asyncio.gather(*tasks)
+        ordered_results = [None] * len(sentences)
+        for i, result in enumerate(results):
+            if result is not None:
+                ordered_results[i] = result
+        return [result for result in ordered_results if result is not None]
 
 async def main(req: func.HttpRequest) -> func.HttpResponse:
     try:
@@ -484,7 +479,7 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
             "StoryText": simplified_story,
             "storyUrl": simplified_story_url,
             "detailedStoryUrl": detailed_story_url,
-            "images": [result for result in image_results if result],
+            "images": image_results,
             "imageContainerName": IMAGE_CONTAINER_NAME,
             "blobStorageConnectionString": STORAGE_CONNECTION_STRING
         }

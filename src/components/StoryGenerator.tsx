@@ -1,75 +1,143 @@
-// src/components/StoryGenerator.tsx
-import React, { useState, ChangeEvent } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button, TextField, MenuItem, Select, SelectChangeEvent, FormControl, InputLabel } from '@mui/material';
-import { useNavigate } from 'react-router-dom'; // For navigation
+import { useNavigate } from 'react-router-dom';
+import { Mic, MicOff } from 'lucide-react';
 
-interface StoryGeneratorProps {
-
+// Define the WebkitSpeechRecognition types
+interface IWebkitSpeechRecognition extends EventTarget {
+    new (): IWebkitSpeechRecognition;
+    continuous: boolean;
+    interimResults: boolean;
+    lang: string;
+    onresult: ((this: IWebkitSpeechRecognition, ev: IWebkitSpeechRecognitionEvent) => any) | null;
+    onend: ((this: IWebkitSpeechRecognition, ev: Event) => any) | null;
+    onaudioend: ((this: IWebkitSpeechRecognition, ev: Event) => any) | null;
+    onaudiostart: ((this: IWebkitSpeechRecognition, ev: Event) => any) | null;
+    start: () => void;
+    stop: () => void;
+    abort: () => void;
 }
+
+interface IWebkitSpeechRecognitionEvent extends Event {
+    results: {
+        item(index: number): { item(index: number): { transcript: string } };
+        [index: number]: { [index: number]: { transcript: string } };
+        length: number;
+    };
+    resultIndex: number;
+}
+
+declare global {
+    interface Window {
+        webkitSpeechRecognition: {
+            new (): IWebkitSpeechRecognition;
+        };
+    }
+}
+
+interface StoryGeneratorProps {}
 
 const StoryGenerator: React.FC<StoryGeneratorProps> = () => {
     const [topic, setTopic] = useState('');
-    const [storyLength, setStoryLength] = useState('short'); // Default story length
-    const [imageStyle, setImageStyle] = useState('whimsical'); // Default image style
+    const [storyLength, setStoryLength] = useState('short');
+    const [imageStyle, setImageStyle] = useState('whimsical');
+    const [isListening, setIsListening] = useState(false);
+    const [recognition, setRecognition] = useState<IWebkitSpeechRecognition | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const navigate = useNavigate();
     const {hostname} = window.location;
 
+    useEffect(() => {
+        if ('webkitSpeechRecognition' in window) {
+            const recognitionInstance = new window.webkitSpeechRecognition();
+            recognitionInstance.continuous = true;
+            recognitionInstance.interimResults = true;
+            
+            recognitionInstance.onresult = (event: IWebkitSpeechRecognitionEvent) => {
+                const results = Array.from({ length: event.results.length }, (_, i) => event.results[i]);
+                const transcript = results
+                    .map(result => result[0].transcript)
+                    .join('');
+                setTopic(transcript);
+            };
+            
+            recognitionInstance.onend = () => {
+                setIsListening(false);
+            };
+            
+            setRecognition(recognitionInstance);
+        } else {
+            console.warn('Speech recognition is not supported in this browser.');
+        }
+    }, []);
+    
+    const handleVoiceInput = () => {
+        if (!recognition) return;
+        
+        if (isListening) {
+            recognition.stop();
+            setIsListening(false);
+        } else {
+            setTopic('');
+            recognition.start();
+            setIsListening(true);
+            
+            let silenceTimeout: ReturnType<typeof setTimeout>;
+            
+            recognition.onaudioend = () => {
+                silenceTimeout = setTimeout(() => {
+                    recognition.stop();
+                }, 3000);
+            };
+            
+            recognition.onaudiostart = () => {
+                if (silenceTimeout) clearTimeout(silenceTimeout);
+            };
+        }
+    };
 
     const handleGenerate = async () => {
         setError(null);
         setIsLoading(true);
         try {
-            // Use /api/GenerateStory for Azure Static Web Apps. 
-            // Use http://localhost:7071/api/GenerateStory for local testing
             const localDev = hostname === "localhost"
             const apiUrl = localDev ? `https://storyfairy.azurewebsites.net/api/GenerateStory?code=${process.env.REACT_APP_FUNCTION_KEY}` : '/api/GenerateStory';
             const headers = {
                 'Content-Type': 'application/json'
-              };
-              
-            console.log("API Endpoint: ", apiUrl);
-            console.log("Topic: ", topic);
-            console.log("Story Length: ", storyLength);
-            console.log("Image Style: ", imageStyle);
-              
+            };
+            
             const response = await fetch(apiUrl, {
                 method: 'POST',
                 headers,
                 body: JSON.stringify({ topic: topic || '""', storyLength, imageStyle }),
             });
-                        
+            
             if (!response.ok) {
                 const errorText = await response.text();
-                try{
+                try {
                     const errorJson = JSON.parse(errorText);
                     const errorMessage = errorJson.error || errorText;
                     throw new Error(errorMessage);
-                } catch(jsonError){
+                } catch(jsonError) {
                     throw new Error(errorText || response.statusText);
                 }
             }
 
             const data = await response.json();
-
-            navigate('/story', { state: { storyData: data } }) // Navigate with state
+            navigate('/story', { state: { storyData: data } });
 
         } catch (error) {
             console.error('Error:', error);
             setError(error instanceof Error ? error.message : 'An unexpected error occurred.');
-        }finally {
-            setIsLoading(false); // Set loading to false after request finishes, irrespective of success or failure. Enable the button.
+        } finally {
+            setIsLoading(false);
         }
     };
 
     const handleRandomStory = () => {
-        setTopic(''); // Clear the topic input
-        handleGenerate(); // Call handleGenerate with empty topic
-    };
-
-    const handleTopicChange = (event: ChangeEvent<HTMLInputElement>) => {
-        setTopic(event.target.value);
+        setTopic('');
+        handleGenerate();
     };
 
     const handleStoryLengthChange = (event: SelectChangeEvent) => {
@@ -81,17 +149,26 @@ const StoryGenerator: React.FC<StoryGeneratorProps> = () => {
     };
 
     return (
-        <div> {/* Use a div for the container */}
-            <h1>Story Generator</h1>
+        <div className="max-w-2xl mx-auto p-6">
+            <h1 className="text-3xl font-bold mb-6">Story Generator</h1>
 
-            <TextField
-                label="Topic (Optional)"
-                value={topic}
-                onChange={handleTopicChange}
-                fullWidth
-                margin="normal"
-                placeholder="Enter a topic or leave blank for random"
-            />
+            <div className="relative">
+                <TextField
+                    label="Topic (Optional)"
+                    value={topic}
+                    onChange={(e) => setTopic(e.target.value)}
+                    fullWidth
+                    margin="normal"
+                    placeholder="Enter a topic or use voice input"
+                />
+                <Button
+                    onClick={handleVoiceInput}
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2"
+                    color={isListening ? "secondary" : "primary"}
+                >
+                    {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+                </Button>
+            </div>
 
             <FormControl fullWidth margin="normal">
                 <InputLabel id="story-length-label">Story Length</InputLabel>
@@ -107,7 +184,6 @@ const StoryGenerator: React.FC<StoryGeneratorProps> = () => {
                     <MenuItem value="long">Long</MenuItem>
                 </Select>
             </FormControl>
-
 
             <FormControl fullWidth margin="normal">
                 <InputLabel id="image-style-label">Image Style</InputLabel>
@@ -132,18 +208,26 @@ const StoryGenerator: React.FC<StoryGeneratorProps> = () => {
                 </Select>
             </FormControl>
 
-
-
-            <Button variant="contained" color="primary" onClick={handleGenerate} disabled={isLoading}> {/* Disable button if loading */}
+            <Button 
+                variant="contained" 
+                color="primary" 
+                onClick={handleGenerate} 
+                disabled={isLoading}
+            >
                 Generate Story
             </Button>
-            <Button variant="outlined" color="secondary" onClick={handleRandomStory} disabled={isLoading} style={{ marginLeft: 10 }}>
+            <Button 
+                variant="outlined" 
+                color="secondary" 
+                onClick={handleRandomStory} 
+                disabled={isLoading} 
+                style={{ marginLeft: 10 }}
+            >
                 Random Story
             </Button>
-            {error && <p style={{ color: 'red', marginTop: 10 }}>{error}</p>} {/* Error display */}
+            {error && <p style={{ color: 'red', marginTop: 10 }}>{error}</p>}
         </div>
     );
-
 };
 
 export default StoryGenerator;

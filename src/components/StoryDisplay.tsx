@@ -1,122 +1,197 @@
-import React, { useEffect } from 'react';
-import { Typography, Box, styled, Paper, Button } from '@mui/material';
-import { StoryData } from '../App';
+import React, { useState, useEffect, useRef } from 'react';
+import { Typography, Box, Button } from '@mui/material';
+import { Download, Share2, MicOff, Mic } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Slider from "react-slick";
+import { jsPDF } from "jspdf";
 import "slick-carousel/slick/slick.css";
-import "slick-carousel/slick/slick-theme.css"
+import "slick-carousel/slick/slick-theme.css";
 
-const StoryDisplay: React.FC = () => {
-    const location = useLocation();
-    const { storyData } = location.state as { storyData: StoryData };
-    const navigate = useNavigate();
-    
-    useEffect(() => {
-        const speak = async () => {
-            if (!storyData || !('speechSynthesis' in window)) {
-                console.warn('SpeechSynthesis API not supported in this browser.');
-                return; // Exit early if not supported
-            }
-
-            // Create a single utterance for the entire story
-            const utterance = new SpeechSynthesisUtterance(storyData.StoryText); // Correct text to use.
-            speechSynthesis.cancel();
-            try {
-                await new Promise<void>((resolve, reject) => {       
-                    utterance.onend = (ev) => { // Correct type annotation for event parameter.
-                        console.log('Speech utterance finished:', ev.type);
-                        resolve();
-                    };
-                    utterance.onerror = (event) => { // onerror expects a SpeechSynthesisErrorEvent
-                        console.error('Speech synthesis error:', event.error);
-                        resolve();
-                    
-                    };
-                    const voices = window.speechSynthesis.getVoices()
-                    if (voices && voices.length>0){
-                        utterance.voice = voices.find(voice => voice.name === 'Google US English Female' && voice.lang === 'en-US') || voices[2];
-                    }
-                    speechSynthesis.speak(utterance); // Correct placement. Speak is called only once.
-                });
-            } 
-            catch (error) {
-                console.error("Error during speech synthesis:", error);
-
-            }
-        };
-        const fetchDataAndSpeak = async () => {
-           
-            if(storyData){                               
-                await speak(); // Speak the story
-            }
+const StoryDisplay = () => {
+  const location = useLocation();
+  const { storyData } = location.state;
+  const navigate = useNavigate();
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const sliderRef = useRef(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  
+  // Split story text into sentences
+  const sentences = storyData.StoryText.split(/(?<=[.!?])\s+/);
+   
+ 
+  useEffect(() => {
+    if ('speechSynthesis' in window) {
+      utteranceRef.current = new SpeechSynthesisUtterance();
+      
+      utteranceRef.current.onboundary = (event) => {
+        if (event.name === 'sentence') {
+          const currentSentenceIndex = Math.floor(event.charIndex / (storyData.StoryText.length / sentences.length));
+          if (sliderRef.current) {
+            (sliderRef.current as Slider).slickGoTo(currentSentenceIndex); 
+          }
         }
-        fetchDataAndSpeak().catch(error => {
-            console.error('Error in fetchDataAndSpeak:', error);
-        })
-    
-         
-        return () => {
-            if ('speechSynthesis' in window) { //Check if supported before calling cancel
-                speechSynthesis.cancel();
-            }
-        };
-    }, [storyData]);
-
-    const sliderSettings = {
-        dots: true,
-        infinite: true,
-        speed: 500,
-        slidesToShow: 1,
-        slidesToScroll: 1,
-        adaptiveHeight: true,  // Adjust height based on image size
-
-    };
-    const handleGenerateNewStory = () => {
-        navigate('/')
+      };
+      
+      return () => {
+        if (utteranceRef.current) {
+          window.speechSynthesis.cancel();
+        }
+      };
     }
+  }, [storyData.StoryText, sentences.length]);
 
-    if (!storyData ) {  // Check for both
-        return <div>Loading story...</div> // Display loading message until both story and image urls are fetched.
+  const handleNarration = () => {
+    if (isPlaying) {
+      window.speechSynthesis.cancel();
+      setIsPlaying(false);
+    } else {
+      if (utteranceRef.current) {
+        utteranceRef.current.text = storyData.StoryText as string;
+        const voices = window.speechSynthesis.getVoices();
+        utteranceRef.current.voice = voices.find(voice => voice.name === 'Google US English Female') || voices[0];
+        window.speechSynthesis.speak(utteranceRef.current);
+        setIsPlaying(true);
+      }
     }
-    const StyledImageContainer = styled(Paper)(({ theme }) => ({
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: theme.spacing(2),
-        margin: 'auto',
-        marginBottom: theme.spacing(2), // Add margin at bottom
-        maxWidth: 800,
-        width: '90%',
-    }));
-    return (
-        <Box sx={{ flexGrow: 1, padding: '20px', justifyContent: 'center', alignItems: 'center' }}> {/* Center content */}
-            
-            <Slider {...sliderSettings}> {/* Use Slider component from react-slick */}
-                {storyData.images.map((image, index) => (
-                    <div key={index}> {/* Important: Wrap each slide in a div */}
-                        {image.imageUrl ? (
-                            <StyledImageContainer elevation={3}>
-                                <img
-                                    src={image.imageUrl}
-                                    alt={`Story illustration ${index + 1}`}
-                                    style={{ maxWidth: '100%', maxHeight: 500 }}
-                                />
-                            </StyledImageContainer>
-                        ) : (
-                            <p>Loading image...</p>
-                        )}
-                    </div>
-                ))}
-            </Slider>
-            <Typography variant="h4" component="h1" gutterBottom align="center">
-                {storyData.StoryText}
-            </Typography>
-            <Button variant="contained" color="primary" onClick={handleGenerateNewStory}>
-                Generate New Story
-            </Button>
-        </Box>
-    );
+  };
+
+  const generateStoryBook = async () => {
+    try {
+      const doc = new jsPDF({
+        format: [210, 210], // Half letter size in mm (8.2 x 8.2 inches)
+        unit: 'mm'
+      });
+  
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+  
+      const addImageToPdf = async (imageUrl: string, x: number, y: number, width: number, height: number) => {
+        try {
+          const img = new Image();
+          img.crossOrigin = "anonymous";
+          img.src = imageUrl;
+          await new Promise((resolve, reject) => {
+            img.onload = () => resolve(img);
+            img.onerror = reject;
+          });
+          doc.addImage(img, 'PNG', x, y, width, height);
+        } catch (error) {
+          console.error('Failed to load image:', error);
+        }
+      };
+  
+      // Cover page
+      const coverImageUrl = storyData.images[0].imageUrl;
+      if (coverImageUrl) {
+        await addImageToPdf(coverImageUrl, 0, 0, pageWidth, pageHeight); // Fit image to full page with top and bottom margin
+      }
+      doc.setFontSize(24);
+      doc.text("My Story", pageWidth / 2, pageHeight / 2, { align: 'center' });
+  
+      // Story pages
+      for (let i = 0; i < sentences.length; i++) {
+        const sentence = sentences[i];
+        const imageData = storyData.images[i];
+  
+        // Left page (text)
+        doc.addPage();
+        const textX = 20;
+        const textY = pageHeight / 2;
+        doc.setFontSize(16);
+        doc.text(sentence, textX, textY, { align: 'left', maxWidth: pageWidth - 40 });
+  
+        // Right page (image)
+        if (imageData && imageData.imageUrl) {
+          doc.addPage();
+          await addImageToPdf(imageData.imageUrl, 0, 0, pageWidth, pageHeight); // Fit image to full page with top and bottom margin
+        }
+      }
+  
+      doc.save('my-story.pdf');
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+    }
+  };
+  
+
+  const handleShare = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'My Story',
+          text: storyData.StoryText,
+          url: window.location.href
+        });
+      } catch (error) {
+        console.error('Error sharing:', error);
+      }
+    }
+  };
+
+  const sliderSettings = {
+    dots: true,
+    infinite: false,
+    speed: 500,
+    slidesToShow: 1,
+    slidesToScroll: 1,
+    adaptiveHeight: true,
+    beforeChange: (_: any, next: React.SetStateAction<number>) => setCurrentSlide(next)
+  };
+
+  return (
+    <Box className="max-w-4xl mx-auto p-6">
+      <div className="flex justify-end gap-4 mb-6">
+        <Button 
+          variant="contained" 
+          onClick={handleNarration}
+          startIcon={isPlaying ? <MicOff /> : <Mic />} 
+        >
+          {isPlaying ? 'Stop Narration' : 'Start Narration'}
+        </Button>
+        <Button 
+          variant="contained" 
+          onClick={generateStoryBook}
+          startIcon={<Download />}
+        >
+          Download Story Book
+        </Button>
+        <Button 
+          variant="contained" 
+          onClick={handleShare}
+          startIcon={<Share2 />}
+        >
+          Share Story
+        </Button>
+      </div>
+
+      <Slider ref={sliderRef} {...sliderSettings}>
+        {storyData.images.map((image: { imageUrl: string | undefined; }, index: number) => (
+          <div key={index} className="p-4">
+            <img
+              src={image.imageUrl}
+              alt={`Story illustration ${index + 1}`}
+              className="max-w-full h-auto rounded-lg shadow-lg"
+            />
+          </div>
+        ))}
+      </Slider>
+
+      <Box className="mt-6 p-4 bg-white rounded-lg shadow">
+        <Typography variant="body1" className="text-lg leading-relaxed">
+          {storyData.StoryText}
+        </Typography>
+      </Box>
+
+      <Button 
+        variant="contained" 
+        onClick={() => navigate('/')}
+        className="mt-6"
+      >
+        Generate New Story
+      </Button>
+    </Box>
+  );
 };
 
 export default StoryDisplay;
