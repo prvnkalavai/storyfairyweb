@@ -31,15 +31,15 @@ async def generate_story_openai(topic, api_key, story_length):
                 {"role": "system", "content": "You are a creative storyteller for children."},
                 {"role": "user", "content": prompt}
             ],
-            max_tokens=350
+            max_tokens=500
         )
         logging.info(f"Raw response from OpenAI: {response.choices[0].message.content}")
-        story, sentences = parse_story_json(response.choices[0].message.content.strip())
+        title, story, sentences = parse_story_json(response.choices[0].message.content.strip())
         logging.info(f"Parsed JSON story: {story}")
-        return story, sentences
+        return title, story, sentences
     except Exception as e:
         logging.error(f"OpenAI error: {e}")
-        return None, None
+        return None, None, None
     
 async def generate_story_gemini(topic, api_key, story_length):
     try:
@@ -48,12 +48,12 @@ async def generate_story_gemini(topic, api_key, story_length):
         model = genai.GenerativeModel('gemini-1.5-flash') 
         response = model.generate_content(prompt)
         logging.info(f"Raw response from Gemini: {response.text}")
-        story, sentences = parse_story_json(response.text.strip())
+        title, story, sentences = parse_story_json(response.text.strip())
         logging.info(f"Parsed JSON story: {story}")
-        return story, sentences
+        return title, story, sentences
     except Exception as e:
         logging.error(f"Gemini error: {e}")
-        return None, None
+        return None, None, None
  
 def create_story_prompt(topic, story_length="short"):
     """Creates the story prompt based on whether a topic is provided or not."""
@@ -61,63 +61,48 @@ def create_story_prompt(topic, story_length="short"):
     num_sentences = sentence_count.get(story_length, 5)
     if topic:
         prompt = f"""
-        Write a {story_length}, imaginative and creative {num_sentences} sentence children's story about {topic}.  
+        Write a {story_length}, imaginative and creative {num_sentences} sentence children's story suitable for young readers about {topic}. The story should have a happy ending and be filled with wonder and excitement..
 
-            Format the story as a followind JSON object with each sentence as a separate entry in an array of sentences to ensure consistent structure:
-            Avoid having any markdown components in the JSON output.
-            {{
-                "sentences": [
-                    "Sentence 1 with full character and scene details.",
-                    "Sentence 2 with full character and scene details.",
-                    "Sentence 3 with full character and scene details.",
-                    "Sentence 4 with full character and scene details.",
-                    "Sentence 5 with full character and scene details." 
-                ]
-            }}
-            
+            Please provide the response as a JSON object without any markdown elements or formatting. Format the story as a JSON object with each sentence as a separate entry in an array of sentences under the 'sentences' property. Additionally, generate a creative title for the story and include it in a separate property called 'Title' in the JSON response object. DO NOT include any additional formatting or markdown.       
             Crucially, EVERY sentence must include these details:
-            * **Central Character:**  Always mention the main character by name. Include a FULL description of their appearance, personality, accessories, and any unique attributes like clothing, toys, skin color, hair/fur color etc in EVERY sentence.  Be extremely repetitive with explicit details.
-            * **Scene:**  Vividly describe the setting in EVERY sentence.  If the scene changes, provide the FULL new scene description in EVERY subsequent sentence.  Be extremely repetitive with explicit details.
-            * **Supporting Characters:** If new characters appear, provide their FULL descriptions in EVERY sentence where they are present. Be extremely repetitive with explicit details.
-            * **Objects/Items:** If any objects/tools/machinery are mentioned in the story, scene or used by any of the characters, maintain the full description of those artifacts and keep it consistent across the story/scenes. Be extremely repetitive with explicit details
+            * **Central Character:**  Always mention the main character by name. Provide a detailed description of their appearance, personality, attire, accessories, and any unique attributes like clothing, toys, skin color, hair/fur color,etc in EVERY sentence. Use vivid language and sensory details. Ensure these details remain consistent across all sentences in which the central character appears.  Be extremely repetitive with explicit details.
+            * **Scene:**  Vividly describe the setting in EVERY sentence, including the time of day, weather, and specific details about the environment. Use descriptive language to create a strong visual image. Ensure these details remain consistent across all sentences.  If the scene changes, the same rule applies for the new scene as well.  Be extremely repetitive with explicit details.
+            * **Supporting Characters:** Describe any supporting characters in detail, including their appearance, personality, and relationship to the main character. Ensure these details remain consistent across all sentences in which the supporting characters appear. Be extremely repetitive with explicit details.
+            * **Objects/Items:** Describe any objects or items or artifacts that appear in the scene in detail, including their appearance, function, and significance to the story. Ensure these details remain consistent across all sentences in which the objects/items appear. Be extremely repetitive with explicit details
 
             Example:
-            "Leo, a brave knight with shining armor and a golden sword, stood in the dark, echoing castle, facing a fierce dragon with fiery breath."
-            "Leo, a brave knight with shining armor and a golden sword, charged at the fierce dragon with fiery breath in the dark, echoing castle."
-            # and so on...  Every sentence must mention ALL relevant characters and FULL scene details. Ensure no details are left out in any sentence
+            "Luna, a curious little fox with a fluffy, silver-gray coat, bright, inquisitive eyes, and a shimmering blue bow around her neck, tiptoed through the moonlit forest, her heart full of wonder and excitement.",
+            "The cool night breeze rustled the leaves of the ancient, towering trees, casting dancing shadows on the forest floor, as Luna, the curious little fox with a fluffy, silver-gray coat, bright, inquisitive eyes, and a shimmering blue bow around her neck, followed a trail of sparkling dust to a hidden clearing.",
+            "In the clearing stood a magical tree adorned with glowing crystals, and beside it, a wise old owl with soft, cloud-like feathers and twinkling, ancient eyes, greeted Luna, the curious little fox with a fluffy, silver-gray coat, bright, inquisitive eyes, and a shimmering blue bow around her neck, with a warm smile.",
+            "Luna, the curious little fox with a fluffy, silver-gray coat, bright, inquisitive eyes, and a shimmering blue bow around her neck, discovered an ornate, golden key lying among the soft, mossy ground, its intricate design glinting in the silver moonlight, as the wise old owl with soft, cloud-like feathers and twinkling, ancient eyes watched over her.",
+            "With the help of the wise old owl with soft, cloud-like feathers and twinkling, ancient eyes, Luna, the curious little fox with a fluffy, silver-gray coat, bright, inquisitive eyes, and a shimmering blue bow around her neck, used the golden key to unlock a hidden door in the magical tree, revealing a wondrous world filled with friendship and adventure, where she knew she would always be happy and safe."
+            and so on...  Every sentence must mention ALL relevant characters and FULL scene details. Ensure no details are left out in any sentence
             """
     else:
         prompt = """
-        Write a random {story_length}, imaginative and creative {num_sentences} sentence children's story.  
+        Write a random {story_length}, imaginative and creative {num_sentences} sentence children's story suitable for young readers. The story should have a happy ending and be filled with wonder and excitement..  
 
-            Format the story as a followind JSON object with each sentence as a separate entry in an array of sentences to ensure consistent structure:
-            Avoid having any markdown components in the JSON output.
-            {
-                "sentences": [
-                    "Sentence 1 with full character and scene details.",
-                    "Sentence 2 with full character and scene details.",
-                    "Sentence 3 with full character and scene details.",
-                    "Sentence 4 with full character and scene details.",
-                    "Sentence 5 with full character and scene details." 
-                ]
-            }
-            
+            Please provide the response as a JSON object without any markdown elements or formatting. Format the story as a JSON object with each sentence as a separate entry in an array of sentences under the 'sentences' property. Additionally, generate a creative title for the story and include it in a separate property called 'Title' in the JSON response object. DO NOT include any additional formatting or markdown.       
             Crucially, EVERY sentence must include these details:
-            * **Central Character:**  Always mention the main character by name. Include a FULL description of their appearance, personality, accessories, and any unique attributes like clothing, toys, skin color, hair/fur color,etc in EVERY sentence.  Be extremely repetitive with explicit details.
-            * **Scene:**  Vividly describe the setting in EVERY sentence.  If the scene changes, provide the FULL new scene description in EVERY subsequent sentence.  Be extremely repetitive with explicit details.
-            * **Supporting Characters:** If new characters appear, provide their FULL descriptions in EVERY sentence where they are present. Be extremely repetitive with explicit details.
-            * **Objects/Items:** If any objects/tools/machinery/items/artifacts are mentioned in the story, scene or used by any of the characters, maintain the full description of those artifacts and keep it consistent across the story/scenes. Be extremely repetitive with explicit details
+            * **Central Character:**  Always mention the main character by name. Provide a detailed description of their appearance, personality, attire, accessories, and any unique attributes like clothing, toys, skin color, hair/fur color,etc in EVERY sentence. Use vivid language and sensory details. Ensure these details remain consistent across all sentences in which the central character appears.  Be extremely repetitive with explicit details.
+            * **Scene:**  Vividly describe the setting in EVERY sentence, including the time of day, weather, and specific details about the environment. Use descriptive language to create a strong visual image. Ensure these details remain consistent across all sentences.  If the scene changes, the same rule applies for the new scene as well.  Be extremely repetitive with explicit details.
+            * **Supporting Characters:** Describe any supporting characters in detail, including their appearance, personality, and relationship to the main character. Ensure these details remain consistent across all sentences in which the supporting characters appear. Be extremely repetitive with explicit details.
+            * **Objects/Items:** Describe any objects or items or artifacts that appear in the scene in detail, including their appearance, function, and significance to the story. Ensure these details remain consistent across all sentences in which the objects/items appear. Be extremely repetitive with explicit details
 
             Example:
-            "Leo, a brave knight with shining armor and a golden sword, stood in the dark, echoing castle, facing a fierce dragon with fiery breath."
-            "Leo, a brave knight with shining armor and a golden sword, charged at the fierce dragon with fiery breath in the dark, echoing castle."
-            # and so on...  Every sentence must mention ALL relevant characters and FULL scene details. Ensure no details are left out in any sentence
+            "Luna, a curious little fox with a fluffy, silver-gray coat, bright, inquisitive eyes, and a shimmering blue bow around her neck, tiptoed through the moonlit forest, her heart full of wonder and excitement.",
+            "The cool night breeze rustled the leaves of the ancient, towering trees, casting dancing shadows on the forest floor, as Luna, the curious little fox with a fluffy, silver-gray coat, bright, inquisitive eyes, and a shimmering blue bow around her neck, followed a trail of sparkling dust to a hidden clearing.",
+            "In the clearing stood a magical tree adorned with glowing crystals, and beside it, a wise old owl with soft, cloud-like feathers and twinkling, ancient eyes, greeted Luna, the curious little fox with a fluffy, silver-gray coat, bright, inquisitive eyes, and a shimmering blue bow around her neck, with a warm smile.",
+            "Luna, the curious little fox with a fluffy, silver-gray coat, bright, inquisitive eyes, and a shimmering blue bow around her neck, discovered an ornate, golden key lying among the soft, mossy ground, its intricate design glinting in the silver moonlight, as the wise old owl with soft, cloud-like feathers and twinkling, ancient eyes watched over her.",
+            "With the help of the wise old owl with soft, cloud-like feathers and twinkling, ancient eyes, Luna, the curious little fox with a fluffy, silver-gray coat, bright, inquisitive eyes, and a shimmering blue bow around her neck, used the golden key to unlock a hidden door in the magical tree, revealing a wondrous world filled with friendship and adventure, where she knew she would always be happy and safe."
+            and so on...  Every sentence must mention ALL relevant characters and FULL scene details. Ensure no details are left out in any sentence
             """
     return prompt
 
 def parse_story_json(story_response):
     try:
         story_json = json.loads(story_response)  
+        title = story_json['Title']
         raw_sentences = story_json['sentences']
         sentences = []
         for sentence in raw_sentences:
@@ -129,23 +114,25 @@ def parse_story_json(story_response):
 
         if not sentences: # If all sentences are empty, return None
             logging.error(f"All sentences are empty after cleaning.")
-            return None, None
+            return None, None, None
 
         story = ' '.join(sentences)  # Use space as separator for simplified story
-        return story, sentences # Return both complete story and list of sentences
+        return title, story, sentences # Return both complete story and list of sentences
     except (json.JSONDecodeError, KeyError, TypeError) as e:  # Handle JSON and KeyError if sentences is not present
         logging.error(f"Invalid or empty JSON response: {story_response}")
         logging.error(f"JSON parsing error: {e}")  # Log the specific exception
-        return None, None  # Return None for both to indicate failure
+        return None, None, None  # Return None for both to indicate failure
 
-def simplify_story(detailed_story, api_key):
+def simplify_story(detailed_story, api_key, story_length = "short"):
     try:
+        sentence_count = { "short": 5, "medium": 7, "long": 9}
+        num_sentences = sentence_count.get(story_length, 5)
         client = openai.OpenAI(api_key=api_key) # Or use Gemini. Configure appropriately
         response = client.chat.completions.create(
             model="gpt-4o-mini",  # Suitable model for simplification
             messages=[
                 {"role": "system", "content": "You are a helpful assistant that simplifies text."},
-                {"role": "user", "content": f"Please simplify the following story, removing repetitive descriptions while maintaining the core narrative in the same number of sentences as the original story:\n\n{detailed_story}"}
+                {"role": "user", "content": f"Please simplify the above story into {num_sentences} sentences, removing repetitive descriptions while maintaining the same narrative. Make the sentences as long and descriptive as possible while keeping the essence and key elements of the story intact.:\n\n{detailed_story}"}
 
             ],
             max_tokens=300 # Adjust if needed
@@ -431,9 +418,9 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
                 image_style = 'whimsical'
 
         # Generate story using Gemini (faster) with fallback to OpenAI
-        story, sentences = await generate_story_gemini(topic, GEMINI_API_KEY, story_length)
+        title, story, sentences = await generate_story_gemini(topic, GEMINI_API_KEY, story_length)
         if not story:
-            story, sentences = await generate_story_openai(topic, openai_api_key, story_length)
+            title, story, sentences = await generate_story_openai(topic, openai_api_key, story_length)
             if not story:
                 return func.HttpResponse("Failed to generate story", status_code=500)
 
@@ -443,7 +430,7 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
         detailed_story_filename = f"{story_title}_detailed.txt"
 
         # Simplify story
-        simplified_story = simplify_story(story, openai_api_key)
+        simplified_story = simplify_story(story, openai_api_key, story_length)
 
         # Save stories to blob storage in parallel
         with ThreadPoolExecutor() as executor:
@@ -476,6 +463,7 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
 
         # Prepare response
         response_data = {
+            "title": title,
             "StoryText": simplified_story,
             "storyUrl": simplified_story_url,
             "detailedStoryUrl": detailed_story_url,

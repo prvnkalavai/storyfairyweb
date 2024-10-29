@@ -152,7 +152,7 @@ const StoryGenerator: React.FC<StoryGeneratorProps> = () => {
         <div className="max-w-2xl mx-auto p-6">
             <h1 className="text-3xl font-bold mb-6">Story Generator</h1>
 
-            <div className="relative">
+            <div className="flex items-center">
                 <TextField
                     label="Topic (Optional)"
                     value={topic}
@@ -163,10 +163,10 @@ const StoryGenerator: React.FC<StoryGeneratorProps> = () => {
                 />
                 <Button
                     onClick={handleVoiceInput}
-                    className="absolute right-2 top-1/2 transform -translate-y-1/2"
+                    className="ml-2"
                     color={isListening ? "secondary" : "primary"}
                 >
-                    {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+                {isListening ? <MicOff className="h-10 w-5" /> : <Mic className="h-10 w-5" />}
                 </Button>
             </div>
 

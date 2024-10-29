@@ -87,7 +87,7 @@ const StoryDisplay = () => {
         await addImageToPdf(coverImageUrl, 0, 0, pageWidth, pageHeight); // Fit image to full page with top and bottom margin
       }
       doc.setFontSize(24);
-      doc.text("My Story", pageWidth / 2, pageHeight / 2, { align: 'center' });
+      doc.text(storyData.title, pageWidth / 2, pageHeight / 2, { align: 'center' });
   
       // Story pages
       for (let i = 0; i < sentences.length; i++) {
@@ -108,7 +108,7 @@ const StoryDisplay = () => {
         }
       }
   
-      doc.save('my-story.pdf');
+      doc.save(storyData.title + '.pdf');
     } catch (error) {
       console.error('Error generating PDF:', error);
     }
@@ -119,7 +119,7 @@ const StoryDisplay = () => {
     if (navigator.share) {
       try {
         await navigator.share({
-          title: 'My Story',
+          title: storyData.title,
           text: storyData.StoryText,
           url: window.location.href
         });

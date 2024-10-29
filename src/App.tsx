@@ -9,6 +9,7 @@ import Header from './components/Header';
 import './index.css'; 
 
 export interface StoryData {
+  title: string;
   StoryText: string;
   storyUrl: string;
   detailedStoryUrl: string;
