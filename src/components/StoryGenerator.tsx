@@ -102,15 +102,24 @@ const StoryGenerator: React.FC<StoryGeneratorProps> = () => {
         setIsLoading(true);
         try {
             const localDev = hostname === "localhost"
-            const apiUrl = localDev ? `https://storyfairy.azurewebsites.net/api/GenerateStory?code=${process.env.REACT_APP_FUNCTION_KEY}` : '/api/GenerateStory';
+            const baseUrl = localDev ? `https://storyfairy.azurewebsites.net/api/GenerateStory?code=${process.env.REACT_APP_FUNCTION_KEY}` : '/api/GenerateStory';
             const headers = {
                 'Content-Type': 'application/json'
             };
             
-            const response = await fetch(apiUrl, {
+            const queryParams = new URLSearchParams({
+                topic: topic || '""',
+                storyLength: storyLength,
+                imageStyle: imageStyle
+            });
+
+            const queryUrl = `${baseUrl}&${queryParams.toString()}`;
+        
+            //console.log('API Request URL:', queryUrl);
+
+            const response = await fetch(queryUrl, {
                 method: 'POST',
-                headers,
-                body: JSON.stringify({ topic: topic || '""', storyLength, imageStyle }),
+                headers
             });
             
             if (!response.ok) {
@@ -125,6 +134,14 @@ const StoryGenerator: React.FC<StoryGeneratorProps> = () => {
             }
 
             const data = await response.json();
+
+            // Log the complete response data
+            //console.log('API Response:', {
+            //totalImages: data.images.length,
+            //images: data.images,
+            //textLength: data.StoryText.length,
+            //sentences: data.StoryText.split(/(?<=[.!?])\s+/).length
+        //});
             navigate('/story', { state: { storyData: data } });
 
         } catch (error) {
@@ -149,7 +166,7 @@ const StoryGenerator: React.FC<StoryGeneratorProps> = () => {
     };
 
     return (
-        <div className="max-w-2xl mx-auto p-6">
+        <div className="max-w-2xl mx-auto p-6 pt-36">
             <h1 className="text-3xl font-bold mb-6">Story Generator</h1>
 
             <div className="flex items-center">

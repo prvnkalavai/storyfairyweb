@@ -425,9 +425,9 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
                 return func.HttpResponse("Failed to generate story", status_code=500)
 
         # Generate story title and filenames
-        story_title = topic.replace(' ', '_') if topic and topic != '""' else str(uuid.uuid4())
-        simplified_story_filename = f"{story_title}.txt"
-        detailed_story_filename = f"{story_title}_detailed.txt"
+        #story_title = topic.replace(' ', '_') if topic and topic != '""' else str(uuid.uuid4())
+        simplified_story_filename = f"{title}.txt"
+        detailed_story_filename = f"{title}_detailed.txt"
 
         # Simplify story
         simplified_story = simplify_story(story, openai_api_key, story_length)
@@ -457,7 +457,7 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
 
         # Generate images in parallel
         image_results = await generate_images_parallel(
-            sentences, story_title, image_style,
+            sentences, title, image_style,
             STORAGE_CONNECTION_STRING, ACCOUNT_KEY, ACCOUNT_NAME
         )
 

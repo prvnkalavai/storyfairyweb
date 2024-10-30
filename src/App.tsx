@@ -29,18 +29,19 @@ const theme = createTheme({
     return (
       <ThemeProvider theme={theme}>
         <Router>
-          <div className="min-h-screen bg-gray-50">
+          <div className="min-h-screen bg-gray-50 flex flex-col">
             <Header />
-            <main className="container mx-auto py-8">
-              <Routes>
-                <Route path="/" element={<StoryGenerator />} />
-                <Route path="/story" element={<StoryDisplay />} />
-              </Routes>
+            <main className="flex-1 overflow-auto pt-36">
+              <div className="container mx-auto py-8">
+                <Routes>
+                  <Route path="/" element={<StoryGenerator />} />
+                  <Route path="/story" element={<StoryDisplay />} />
+                </Routes>
+              </div>
             </main>
           </div>
         </Router>
       </ThemeProvider>
     );
   };
-
 export default App;
