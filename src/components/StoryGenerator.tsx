@@ -113,7 +113,7 @@ const StoryGenerator: React.FC<StoryGeneratorProps> = () => {
                 imageStyle: imageStyle
             });
 
-            const queryUrl = `${baseUrl}&${queryParams.toString()}`;
+            const queryUrl = localDev ? `${baseUrl}&${queryParams.toString()}` : `${baseUrl}?${queryParams.toString()}`;
         
             //console.log('API Request URL:', queryUrl);
 

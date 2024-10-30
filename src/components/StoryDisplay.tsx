@@ -267,7 +267,7 @@ const StoryDisplay = () => {
   };
 
   return (
-    <Box className="max-w-4xl mx-auto p-6 pt-36">
+    <Box className="max-w-4xl mx-auto p-6">
       <div className="flex justify-center gap-1 mb-0 mt-6">
         <Button 
           variant="contained" 
@@ -313,7 +313,7 @@ const StoryDisplay = () => {
         ))}
       </Slider>
 
-      <Box className="mt-6 p-4 bg-white rounded-lg shadow">
+      <Box className="mt-6 p-4 bg-purple-100 rounded-lg shadow">
         <Typography variant="body1" className="text-lg leading-relaxed">
           {storyData.StoryText}
         </Typography>
