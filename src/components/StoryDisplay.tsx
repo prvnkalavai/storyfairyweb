@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Typography, Box, Button } from '@mui/material';
-import { Download, Share2, MicOff, Mic  } from 'lucide-react';
+import { Typography, Box } from '@mui/material';
+import { Download, Share2, MicOff, Mic } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Slider from "react-slick";
 import { jsPDF } from "jspdf";
@@ -41,6 +41,15 @@ const patternLibrary: Record<string, string> = {
   default: defaultSubtle
 };
 
+// Type guard for Web Share API
+const canShare = (): boolean => {
+  return !!(
+    typeof navigator !== 'undefined' && 
+    navigator.share && 
+    typeof navigator.share === 'function'
+  );
+};
+
 const StoryDisplay = () => {
   const location = useLocation();
   const { storyData } = (location.state as LocationState);
@@ -50,23 +59,30 @@ const StoryDisplay = () => {
   const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
-  const [shareAfterGeneration, setShareAfterGeneration] = useState(false);
-  const sentences = storyData.StoryText.split(/(?<=[.!?])\s+/);
+  const [isSharing, setIsSharing] = useState(false);
+  const shareButtonRef = useRef<HTMLButtonElement>(null);
+  const shareActionRef = useRef<(() => Promise<void>) | null>(null);
+const sentences = storyData.StoryText.split(/(?<=[.!?])\s+/);
 
   const getRandomPattern = (): string => {
     const patterns = Object.values(patternLibrary);
     return patterns[Math.floor(Math.random() * patterns.length)];
   };
    
+  // Narration setup with improved mobile support
   useEffect(() => {
     if ('speechSynthesis' in window) {
       utteranceRef.current = new SpeechSynthesisUtterance();
       
+      utteranceRef.current.onend = () => {
+        setIsPlaying(false);
+      };
+      
       utteranceRef.current.onboundary = (event: SpeechSynthesisEvent) => {
-        if (event.name === 'sentence') {
-          const currentSentenceIndex = Math.floor(event.charIndex / (storyData.StoryText.length / sentences.length));
+        if (event.name === 'sentence' || event.name === 'word') {
+          const index = Math.floor(event.charIndex / (storyData.StoryText.length / sentences.length));
           if (sliderRef.current) {
-            sliderRef.current.slickGoTo(currentSentenceIndex);
+            sliderRef.current.slickGoTo(index);
           }
         }
       };
@@ -79,7 +95,7 @@ const StoryDisplay = () => {
     }
   }, [storyData.StoryText, sentences.length]);
 
-  const handleNarration = () => {
+  const handleNarration = useCallback(() => {
     if (isPlaying) {
       window.speechSynthesis.cancel();
       setIsPlaying(false);
@@ -92,42 +108,17 @@ const StoryDisplay = () => {
         setIsPlaying(true);
       }
     }
-  };
+  }, [isPlaying, storyData.StoryText]);
 
   const downloadFile = useCallback((blob: Blob) => {
     const downloadLink = document.createElement('a');
     downloadLink.href = URL.createObjectURL(blob);
     downloadLink.download = `${storyData.title}.pdf`;
     downloadLink.click();
-  }, [storyData.title]);
+    URL.revokeObjectURL(downloadLink.href);
+  }, [storyData.title]);  
 
-  const shareFile = useCallback(async (blob: Blob) => {
-    if (navigator.share) {
-      try {
-        const file = new File([blob], `${storyData.title}.pdf`, { type: 'application/pdf' });
-        await navigator.share({
-          title: storyData.title,
-          files: [file]
-        });
-      } catch (error) {
-        console.error('Error sharing:', error);
-        // Fall back to download if sharing fails
-        downloadFile(blob);
-      }
-    } else {
-      downloadFile(blob);
-    }
-  }, [storyData.title, downloadFile]);
-
-  useEffect(() => {
-    // Attempt to share when PDF generation completes
-    if (!isGeneratingPdf && shareAfterGeneration && pdfBlob) {
-      setShareAfterGeneration(false);
-      shareFile(pdfBlob);
-    }
-  }, [isGeneratingPdf, shareAfterGeneration, pdfBlob, shareFile]);
-
-  const generateStoryBook = useCallback(async (shouldDownload: boolean = true) => {
+  const generateStoryBook = useCallback(async () => {
     try {
       setIsGeneratingPdf(true);
       const doc = new jsPDF({
@@ -189,7 +180,7 @@ const StoryDisplay = () => {
         
         // Add text
         doc.setTextColor(0, 0, 0);
-        doc.setFontSize(20);
+        doc.setFontSize(30);
         doc.setFont("Helvetica", "BoldOblique");
         const textX = 20;
         const textY = pageHeight / 2;
@@ -210,14 +201,8 @@ const StoryDisplay = () => {
       }
   
       // Save PDF blob for sharing
-      // Save PDF blob for sharing
       const pdfOutput = doc.output('blob');
       setPdfBlob(pdfOutput);
-      
-      if (shouldDownload) {
-        doc.save(storyData.title + '.pdf');
-      }
-      
       return pdfOutput;
     } catch (error) {
       console.error('Error generating PDF:', error);
@@ -225,26 +210,101 @@ const StoryDisplay = () => {
     } finally {
       setIsGeneratingPdf(false);
     }
-  }, [storyData.title, storyData.images, sentences]); 
+  }, [storyData.title, storyData.images, sentences]);
 
-  const handleShare = useCallback(async () => {
-    if (pdfBlob) {
-      // If PDF exists, share immediately
-      shareFile(pdfBlob);
-    } else {
-      // Set flag to share after generation and start generating PDF
-      setShareAfterGeneration(true);
-      generateStoryBook(false);
-    }
-  }, [pdfBlob, shareFile, generateStoryBook]);
-
-  const handleDownload = useCallback(() => {
+  // Modified share handler to ensure user gesture
+  const handleDownload = useCallback(async () => {
     if (pdfBlob) {
       downloadFile(pdfBlob);
     } else {
-      generateStoryBook(true);
+      const newPdfBlob = await generateStoryBook();
+      if (newPdfBlob) {
+        downloadFile(newPdfBlob);
+      }
     }
   }, [pdfBlob, downloadFile, generateStoryBook]);
+
+  const handleShare = useCallback(async (e: React.MouseEvent<HTMLButtonElement>) => {
+    if (!canShare()) {
+      handleDownload();
+      return;
+    }
+
+    try {
+      setIsSharing(true);
+
+      // If we already have a PDF, share it immediately
+      if (pdfBlob) {
+        const file = new File([pdfBlob], `${storyData.title}.pdf`, { 
+          type: 'application/pdf' 
+        });
+
+        await navigator.share({
+          title: storyData.title,
+          files: [file]
+        });
+        return;
+      }
+
+      // If no PDF exists, generate it first
+      const newPdfBlob = await generateStoryBook();
+      if (!newPdfBlob) {
+        throw new Error('Failed to generate PDF');
+      }
+
+      // Store the PDF for future use
+      setPdfBlob(newPdfBlob);
+
+      // Create share action that maintains the user gesture
+      const shareAction = async () => {
+        const file = new File([newPdfBlob], `${storyData.title}.pdf`, { 
+          type: 'application/pdf' 
+        });
+
+        await navigator.share({
+          title: storyData.title,
+          files: [file]
+        });
+      };
+
+      // Store the share action for the click handler
+      shareActionRef.current = shareAction;
+
+      // Trigger a new click on the share button
+      if (shareButtonRef.current) {
+        shareButtonRef.current.click();
+      }
+      
+    } catch (error) {
+      console.error('Share failed:', error);
+      // Fallback to download
+      if (pdfBlob) {
+        downloadFile(pdfBlob);
+      }
+    } finally {
+      setIsSharing(false);
+      shareActionRef.current = null;
+    }
+  }, [pdfBlob, storyData.title, generateStoryBook, downloadFile, handleDownload]);
+
+  // Click handler that executes the stored share action
+  const handleShareClick = useCallback(async (e: React.MouseEvent<HTMLButtonElement>) => {
+    if (shareActionRef.current) {
+      try {
+        await shareActionRef.current();
+      } catch (error) {
+        console.error('Share execution failed:', error);
+        if (pdfBlob) {
+          downloadFile(pdfBlob);
+        }
+      }
+      shareActionRef.current = null;
+      return;
+    }
+
+    handleShare(e);
+  }, [handleShare, pdfBlob, downloadFile]);
+
 
   const sliderSettings = {
     dots: true,
@@ -252,74 +312,71 @@ const StoryDisplay = () => {
     speed: 500,
     slidesToShow: 1,
     slidesToScroll: 1,
-    adaptiveHeight: true,
-    beforeChange: (_: any, next: number) => setCurrentSlide(next)
+    adaptiveHeight: true
   };
 
-  // Use setCurrentSlide in a function to avoid the unused variable error
-  const setCurrentSlide = (slideIndex: number) => {
-    // Update current slide index for narration synchronization
-    if (sliderRef.current && utteranceRef.current && isPlaying) {
-      const sentenceIndex = Math.floor(slideIndex);
-      const text = sentences.slice(0, sentenceIndex + 1).join(' ');
-      utteranceRef.current.text = text;
-    }
-  };
+  
 
   return (
-    <Box className="max-w-4xl mx-auto p-6">
-      <div className="flex justify-center gap-1 mb-0 mt-6">
-        <Button 
-          variant="contained" 
+    <Box className="max-w-4xl mx-auto p-4">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 mb-4">
+        <button
           onClick={() => navigate('/')}
-          className="mt-0"
+          className="flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-blue-400"
         >
-          Generate New Story
-        </Button>
-        <Button 
-          variant="contained" 
+          Generate New
+        </button>
+        
+        <button
           onClick={handleNarration}
-          startIcon={isPlaying ? <MicOff /> : <Mic />} 
+          className="flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-blue-400"
           disabled={isGeneratingPdf}
         >
-          {isPlaying ? 'Stop Narration' : 'Start Narration'}
-        </Button>
-        <Button 
-          variant="contained" 
+          {isPlaying ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+          <span className="hidden sm:inline">{isPlaying ? 'Stop' : 'Start'} Narration</span>
+        </button>
+
+        <button
           onClick={handleDownload}
-          startIcon={<Download />}
+          className="flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-blue-400"
           disabled={isGeneratingPdf}
         >
-          {isGeneratingPdf ? 'Generating PDF...' : 'Download Story Book'}
-        </Button>
-        <Button 
-          variant="contained" 
-          onClick={handleShare}
-          startIcon={<Share2 />}
-          disabled={isGeneratingPdf}
-        >
-          {isGeneratingPdf ? 'Preparing...' : 'Share Story'}
-        </Button>
+          <Download className="w-4 h-4" />
+          <span className="hidden sm:inline">Download</span>
+        </button>
+
+        {canShare() && (
+          <button
+            ref={shareButtonRef}
+            onClick={handleShareClick}
+            disabled={isGeneratingPdf || isSharing}
+            className="flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-blue-400"
+          >
+            <Share2 className="w-4 h-4" />
+            <span className="hidden sm:inline">
+              {isGeneratingPdf || isSharing ? 'Preparing...' : 'Share'}
+            </span>
+          </button>
+        )}
       </div>
+
       <Slider ref={sliderRef} {...sliderSettings}>
         {storyData.images.map((image, index) => (
-          <div key={index} className="p-4">
+          <div key={index} className="p-2">
             <img
               src={image.imageUrl}
               alt={`Story illustration ${index + 1}`}
-              className="max-w-full h-auto rounded-lg shadow-lg"
+              className="w-full h-auto rounded-lg shadow-lg"
             />
           </div>
         ))}
       </Slider>
 
-      <Box className="mt-6 p-4 bg-purple-100 rounded-lg shadow">
+      <Box className="mt-4 p-4 bg-purple-100 rounded-lg shadow">
         <Typography variant="body1" className="text-lg leading-relaxed">
           {storyData.StoryText}
         </Typography>
       </Box>
-
-      
     </Box>
   );
 };
