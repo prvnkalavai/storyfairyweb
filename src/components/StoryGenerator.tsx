@@ -222,6 +222,15 @@ const StoryGenerator: React.FC<StoryGeneratorProps> = () => {
                     <MenuItem value="retro">Retro</MenuItem>
                     <MenuItem value="cartoon">Cartoon</MenuItem>
                     <MenuItem value="stopmotion">Stopmotion</MenuItem>
+                    <MenuItem value="claymation">Claymation</MenuItem>
+                    <MenuItem value="comicbook">Comicbook</MenuItem>
+                    <MenuItem value="horror">Horror</MenuItem>
+                    <MenuItem value="watercolor">Watercolor</MenuItem>
+                    <MenuItem value="painting">Painting</MenuItem>
+                    <MenuItem value="cyberpunk">Cyberpunk</MenuItem>
+                    <MenuItem value="futuristic">Futuristic</MenuItem>
+                    <MenuItem value="illustration">Illustration</MenuItem>
+                    <MenuItem value="3d">3D</MenuItem>
                 </Select>
             </FormControl>
 

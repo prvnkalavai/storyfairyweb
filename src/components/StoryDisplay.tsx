@@ -6,16 +6,25 @@ import Slider from "react-slick";
 import { jsPDF } from "jspdf";
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
-import whimsicalDots from '../assets/whimsical-dots.png';
-import disneyStars from '../assets/disney-stars.png';
-import pixarSquares from '../assets/pixar-squares.png';
-import ghibliLeaves from '../assets/ghibli-leaves.png';
-import animeLines2 from '../assets/anime-lines2.png';
-import fantasySwirls from '../assets/fantasy-swirls.png';
-import retroGeometric from '../assets/retro-geometric.png';
-import cartoonBubbles from '../assets/cartoon-bubbles.png';
-import stopmotionTexture from '../assets/stopmotion-texture.png';
-import defaultSubtle from '../assets/default-subtle.png';
+import dots from '../assets/dots.png';
+import stars from '../assets/stars.png';
+import clouds from '../assets/clouds.png';
+import bubbles from '../assets/bubbles.png';
+import balloons from '../assets/balloons.png';
+import lines from '../assets/lines.png';
+import leaves from '../assets/leaves.png';
+import arrows from '../assets/arrows.png';
+import rockets from '../assets/rockets.png';
+import hearts from '../assets/hearts.png';
+import planets from '../assets/planets.png';
+import shapes from '../assets/shapes.png';
+import keys from '../assets/keys.png';
+import candy from '../assets/candy.png';
+import ribbons from '../assets/ribbons.png';
+import flowers from '../assets/flowers.png';
+import school from '../assets/school.png';
+import whales from '../assets/whales.png';
+import purple from '../assets/purple.png';
 
 interface StoryData {
   StoryText: string;
@@ -29,16 +38,25 @@ interface LocationState {
 
 // Pattern library with base64 encoded PNG patterns
 const patternLibrary: Record<string, string> = {
-  whimsical: whimsicalDots,
-  disney: disneyStars,
-  pixar: pixarSquares,
-  studioghibli: ghibliLeaves,
-  anime: animeLines2,
-  fantasy: fantasySwirls,
-  retro: retroGeometric,
-  cartoon: cartoonBubbles,
-  stopmotion: stopmotionTexture,
-  default: defaultSubtle
+  dots: dots,
+  stars: stars,
+  clouds: clouds,
+  bubbles: bubbles,
+  balloons: balloons,
+  lines: lines,
+  leaves: leaves,
+  arrows: arrows,
+  rockets: rockets,
+  hearts: hearts,
+  planets: planets,
+  shapes: shapes,
+  keys: keys,
+  candy: candy,
+  ribbons: ribbons,
+  flowers: flowers,
+  school: school,
+  whales: whales,
+  purple: purple
 };
 
 // Type guard for Web Share API
