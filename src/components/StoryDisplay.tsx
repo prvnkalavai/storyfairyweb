@@ -138,34 +138,38 @@ export const StoryDisplay: React.FC = () => {
   };
 
   return (
-    <Box className="max-w-5xl mx-auto p-40">
-      <StoryControls
-        onNewStory={() => navigate('/')}
-        onNarration={handleNarration}
-        onDownload={handleDownload}
-        onShare={canShare() ? handleShare : undefined}
-        isPlaying={isPlaying}
-        isDownloading={isDownloading}
-        isSharing={isSharing}
-      />
+    <div className="w-full min-h-screen bg-gray-900 p-36">
+      <div className="max-w-4xl mx-auto px-4 py-6 md:py-8">
+        <StoryControls
+          onNewStory={() => navigate('/')}
+          onNarration={handleNarration}
+          onDownload={handleDownload}
+          onShare={canShare() ? handleShare : undefined}
+          isPlaying={isPlaying}
+          isDownloading={isDownloading}
+          isSharing={isSharing}
+        />
 
-      <Slider ref={sliderRef} {...sliderSettings}>
-        {storyData.images.map((image, index) => (
-          <div key={index} className="p-2">
-            <img
-              src={image.imageUrl}
-              alt={`Story illustration ${index + 1}`}
-              className="w-full h-auto rounded-lg shadow-lg"
-            />
-          </div>
-        ))}
-      </Slider>
+        <div className="mt-4">
+          <Slider ref={sliderRef} {...sliderSettings}>
+            {storyData.images.map((image, index) => (
+              <div key={index} className="px-2">
+                <img
+                  src={image.imageUrl}
+                  alt={`Story illustration ${index + 1}`}
+                  className="w-full h-auto rounded-lg shadow-lg mx-auto"
+                />
+              </div>
+            ))}
+          </Slider>
+        </div>
 
-      <Box className="mt-6 p-4 bg-purple-200 backdrop-blur-sm rounded-lg shadow-lg">
-        <Typography variant="body1" className="text-lg leading-relaxed text-justify">
-          {storyData.StoryText}
-        </Typography>
-      </Box>
-    </Box>
+        <div className="mt-6 p-4 bg-purple-200 backdrop-blur-sm rounded-lg shadow-lg">
+          <Typography variant="body1" className="text-lg leading-relaxed text-justify">
+            {storyData.StoryText}
+          </Typography>
+        </div>
+      </div>
+    </div>
   );
 };
