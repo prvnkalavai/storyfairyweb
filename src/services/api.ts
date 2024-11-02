@@ -17,8 +17,8 @@ export const generateStory = async (
     storyLength,
     imageStyle
   });
-
-  const response = await fetch(`${baseUrl}&${queryParams.toString()}`, {
+  const apiURL = localDev ? `${baseUrl}&${queryParams.toString()}` : `${baseUrl}?${queryParams.toString()}`;
+  const response = await fetch(apiURL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' }
   });

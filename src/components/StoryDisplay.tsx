@@ -161,8 +161,8 @@ export const StoryDisplay: React.FC = () => {
         ))}
       </Slider>
 
-      <Box className="mt-4 p-4 bg-purple-100 rounded-lg shadow">
-        <Typography variant="body1" className="text-lg leading-relaxed">
+      <Box className="mt-6 p-4 bg-purple-100 rounded-lg shadow">
+        <Typography variant="body1" className="text-lg leading-relaxed text-justify">
           {storyData.StoryText}
         </Typography>
       </Box>
