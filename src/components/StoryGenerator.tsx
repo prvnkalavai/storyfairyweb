@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button, TextField, MenuItem, SelectChangeEvent, FormControl, InputLabel, Select } from '@mui/material';
+import { Button, TextField, MenuItem, SelectChangeEvent, FormControl, InputLabel, Select, Alert, Snackbar } from '@mui/material';
 import { Mic, MicOff } from 'lucide-react';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { generateStory } from '../services/api';
@@ -14,7 +14,7 @@ export const StoryGenerator: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
-  const { isListening, toggleListening } = useSpeechRecognition((transcript) => {
+  const { isListening, toggleListening, error: speechError } = useSpeechRecognition((transcript) => {
     setTopic(transcript);
   });
 
@@ -37,27 +37,28 @@ export const StoryGenerator: React.FC = () => {
     setTopic('');
     handleGenerate();
   };
-
   return (
     <div className="max-w-4xl mx-auto p-6 pt-36">
       <h1 className="text-3xl font-bold mb-6 text-white">Story Generator</h1>
       <div className="p-6 bg-white/60 backdrop-blur-sm rounded-lg shadow-lg"> 
       <div className="flex items-center">
-        <TextField
-          label="Topic (Optional)"
-          value={topic}
-          onChange={(e) => setTopic(e.target.value)}
-          fullWidth
-          margin="normal"
-          placeholder="Enter a topic or use voice input"
-        />
-        <Button
-          onClick={toggleListening}
-          className="ml-2"
-          color={isListening ? "secondary" : "primary"}
-        >
-          {isListening ? <MicOff className="h-10 w-5" /> : <Mic className="h-10 w-5" />}
-        </Button>
+      <TextField
+            label="Topic (Optional)"
+            value={topic}
+            onChange={(e) => setTopic(e.target.value)}
+            fullWidth
+            margin="normal"
+            placeholder="Enter a topic or use voice input"
+          />
+          <Button
+            onClick={toggleListening}
+            className="ml-2 min-w-[48px] h-14"
+            color={isListening ? "secondary" : "primary"}
+            disabled={!!speechError}
+            title={speechError || 'Toggle voice input'}
+          >
+            {isListening ? <MicOff className="h-6 w-6" /> : <Mic className="h-6 w-6" />}
+          </Button>
       </div>
 
       <FormControl fullWidth margin="normal">
@@ -93,26 +94,32 @@ export const StoryGenerator: React.FC = () => {
           ))}
         </Select>
       </FormControl>
-
+      <div className="mt-6 flex gap-4">
       <Button 
-        variant="contained" 
-        color="primary" 
-        onClick={handleGenerate} 
-        disabled={isLoading}
-      >
-        Generate Story
-      </Button>
-      <Button 
-        variant="outlined" 
-        color="secondary" 
-        onClick={handleRandomStory} 
-        disabled={isLoading} 
-        style={{ marginLeft: 10 }}
-      >
-        Random Story
-      </Button>
-      {error && <p style={{ color: 'red', marginTop: 10 }}>{error}</p>}
-    </div>
+            variant="contained" 
+            color="primary" 
+            onClick={handleGenerate} 
+            disabled={isLoading}
+            fullWidth
+          >
+            {isLoading ? 'Generating...' : 'Generate Story'}
+          </Button>
+          <Button 
+            variant="outlined" 
+            color="secondary" 
+            onClick={handleRandomStory} 
+            disabled={isLoading}
+            fullWidth
+          >
+            Random Story
+          </Button>
+      </div>
     </div> 
+    <Snackbar open={!!error || !!speechError} autoHideDuration={6000} onClose={() => setError(null)}>
+    <Alert severity="error" onClose={() => setError(null)}>
+      {error || speechError}
+    </Alert>
+  </Snackbar>
+</div>
   );
 };

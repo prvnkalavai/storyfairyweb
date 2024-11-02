@@ -1,53 +1,60 @@
-import { useState, useEffect } from 'react';
+import { useState, useCallback, useEffect, SetStateAction } from 'react';
 
-interface IWebkitSpeechRecognitionResult {
-  0: { transcript: string };
-}
-
-interface IWebkitSpeechRecognitionEvent extends Event {
-  results: IWebkitSpeechRecognitionResult[];
-}
-
-interface IWebKitSpeechRecognition extends EventTarget {
-  continuous: boolean;
-  interimResults: boolean;
-  onresult: (event: IWebkitSpeechRecognitionEvent) => void;
-  onend: () => void;
-  start: () => void;
-  stop: () => void;
-}
-
-export const useSpeechRecognition = (onTranscriptChange: (transcript: string) => void) => {
+export const useSpeechRecognition = (onTranscript: (transcript: string) => void) => {
   const [isListening, setIsListening] = useState(false);
-  const [recognition, setRecognition] = useState<IWebKitSpeechRecognition | undefined>(undefined);
+  const [error, setError] = useState<string | null>(null);
+
   useEffect(() => {
-    if (typeof window !== 'undefined' && 'webkitSpeechRecognition' in window) {
-      const recognitionInstance = new (window as any).webkitSpeechRecognition();
-      recognitionInstance.continuous = true;
-      recognitionInstance.interimResults = true;
-      
-      recognitionInstance.onresult = (event: IWebkitSpeechRecognitionEvent) => {
-        const transcript = event.results.map(result => result[0].transcript).join('');
-        onTranscriptChange(transcript);
-      };
-      
-      recognitionInstance.onend = () => setIsListening(false);
-      setRecognition(recognitionInstance);
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      setError('Speech recognition is not supported in this browser.');
+      return;
     }
-  }, [onTranscriptChange]);
+  }, []);
 
-  const toggleListening = () => {
-    if (!recognition) return;
-    
-    if (isListening) {
-      recognition.stop();
-      setIsListening(false);
-    } else {
-      onTranscriptChange('');
-      recognition.start();
+  const toggleListening = useCallback(() => {
+    if (error) return;
+
+    const SpeechRecognition = window.webkitSpeechRecognition || window.SpeechRecognition;
+    const recognition = new SpeechRecognition();
+
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = 'en-US';
+
+    recognition.onstart = () => {
       setIsListening(true);
-    }
-  };
+    };
 
-  return { isListening, toggleListening };
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognition.onerror = (event: { error: SetStateAction<string | null>; }) => {
+      setError(event.error);
+      setIsListening(false);
+    };
+
+    recognition.onresult = (event: { results: string | any[]; }) => {
+      const lastResultIndex = event.results.length - 1;
+      const transcript = event.results[lastResultIndex][0].transcript;
+      onTranscript(transcript);
+    };
+
+    if (!isListening) {
+      try {
+        recognition.start();
+      } catch (err) {
+        console.error('Speech recognition error:', err);
+        setError('Failed to start speech recognition');
+      }
+    } else {
+      recognition.stop();
+    }
+  }, [isListening, error, onTranscript]);
+
+  return {
+    isListening,
+    toggleListening,
+    error
+  };
 };

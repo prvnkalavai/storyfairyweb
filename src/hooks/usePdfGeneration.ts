@@ -73,8 +73,8 @@ export const usePdfGeneration = (storyData: StoryData) => {
         doc.setTextColor(0, 0, 0);
         doc.setFontSize(30);
         doc.setFont("Helvetica", "BoldOblique");
-        const textX = 20;
-        const textY = pageHeight / 2;
+        const textX = 25;
+        const textY = pageHeight / 3;
         doc.text(sentence, textX, textY, { align: 'left', maxWidth: pageWidth - 40 });
   
         // Right page (image)

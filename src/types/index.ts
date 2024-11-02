@@ -7,3 +7,10 @@ export interface StoryData {
   export interface LocationState {
     storyData: StoryData;
   }
+
+  declare global {
+    interface Window {
+      webkitSpeechRecognition: any;
+      SpeechRecognition: any;
+    }
+  }
