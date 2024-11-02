@@ -70,16 +70,40 @@ export const StoryDisplay: React.FC = () => {
   }, [sentences, storyData.images.length]);
 
   // Initialize speech synthesis
-  useEffect(() => {
-    if ('speechSynthesis' in window) {
-      utteranceRef.current = new SpeechSynthesisUtterance();
+useEffect(() => {
+  if ('speechSynthesis' in window) {
+    utteranceRef.current = new SpeechSynthesisUtterance();
+    
+    // Function to set voice
+    const setVoice = () => {
       const voices = window.speechSynthesis.getVoices();
-      if (utteranceRef.current) {
-        utteranceRef.current.voice = voices.find(voice => voice.name === 'Google US English Female') || voices[0];
-        utteranceRef.current.rate = 1.0; // Normal rate
+      if (utteranceRef.current && voices.length > 0) {
+        // Try to find English voices in this order of preference
+        const preferredVoices = [
+          voices.find(voice => voice.name === 'Samantha'), // Safari's US English female voice
+          voices.find(voice => voice.name === 'Google US English Female'),
+          voices.find(voice => voice.voiceURI.includes('en-US')),
+          voices.find(voice => voice.lang === 'en-US'),
+          voices[0] // Fallback to first available voice
+        ];
+        
+        utteranceRef.current.voice = preferredVoices.find(voice => voice !== undefined) || voices[0];
+        utteranceRef.current.lang = 'en-US'; // Explicitly set language
+        utteranceRef.current.rate = 1.0;
       }
-    }
-  }, []);
+    };
+
+    // Set voice immediately if voices are already loaded
+    setVoice();
+
+    // Safari and Chrome load voices asynchronously
+    window.speechSynthesis.onvoiceschanged = setVoice;
+    
+    return () => {
+      window.speechSynthesis.onvoiceschanged = null;
+    };
+  }
+}, []);
 
   const handleNarration = useCallback(() => {
     if (isPlaying) {

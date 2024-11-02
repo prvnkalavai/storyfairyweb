@@ -8,7 +8,6 @@ export const usePdfGeneration = (storyData: StoryData) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const sentences = storyData.StoryText.split(/(?<=[.!?])\s+/);
   
-
   const generateStoryBook = useCallback(async () => {
     try {
       setIsGenerating(true);
@@ -19,17 +18,22 @@ export const usePdfGeneration = (storyData: StoryData) => {
 
       const pageWidth = doc.internal.pageSize.getWidth();
       const pageHeight = doc.internal.pageSize.getHeight();
-  
-      const addImageToPdf = async (imageUrl: string, x: number, y: number, width: number, height: number, opacity: number = 1) => {
-        try {
+
+      // Helper function to load images
+      const loadImage = (imageUrl: string): Promise<HTMLImageElement> => {
+        return new Promise((resolve, reject) => {
           const img = new Image();
           img.crossOrigin = "anonymous";
+          img.onload = () => resolve(img);
+          img.onerror = reject;
           img.src = imageUrl;
-          
-          await new Promise((resolve, reject) => {
-            img.onload = resolve;
-            img.onerror = reject;
-          });
+        });
+      };
+
+      // Helper function to add images to PDF
+      const addImageToPdf = async (imageUrl: string, x: number, y: number, width: number, height: number, opacity: number = 1) => {
+        try {
+          const img = await loadImage(imageUrl);
           
           if (opacity !== 1) {
             const gState = doc.GState({ opacity: opacity });
@@ -44,11 +48,12 @@ export const usePdfGeneration = (storyData: StoryData) => {
           }
         } catch (error) {
           console.error('Failed to load image:', error);
+          throw error;
         }
       };
   
-      // Cover page
-      const coverImageUrl = storyData.images[0].imageUrl;
+      // Cover page - ensure image is loaded before adding
+      const coverImageUrl = storyData.images[0]?.imageUrl;
       if (coverImageUrl) {
         await addImageToPdf(coverImageUrl, 0, 0, pageWidth, pageHeight);
       }
@@ -57,7 +62,7 @@ export const usePdfGeneration = (storyData: StoryData) => {
       doc.setFont("Helvetica", "bold");
       doc.text(storyData.title, pageWidth / 2, 30, { align: 'center' });
       
-      // Story pages
+      // Story pages - wait for each image to load before proceeding
       for (let i = 0; i < sentences.length; i++) {
         const sentence = sentences[i];
         const imageData = storyData.images[i];
@@ -77,16 +82,16 @@ export const usePdfGeneration = (storyData: StoryData) => {
         const textY = pageHeight / 3;
         doc.text(sentence, textX, textY, { align: 'left', maxWidth: pageWidth - 40 });
   
-        // Right page (image)
-        if (imageData && imageData.imageUrl) {
+        // Right page (image) - ensure image is loaded before adding
+        if (imageData?.imageUrl) {
           doc.addPage();
           await addImageToPdf(imageData.imageUrl, 0, 0, pageWidth, pageHeight);
         }        
       }
       
-      // Rear cover page
+      // Rear cover page - ensure image is loaded before adding
       doc.addPage();
-      const rearCoverImageUrl = storyData.images[0].imageUrl;
+      const rearCoverImageUrl = storyData.images[0]?.imageUrl;
       if (rearCoverImageUrl) {
         await addImageToPdf(rearCoverImageUrl, 0, 0, pageWidth, pageHeight);
       }
