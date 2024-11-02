@@ -3,7 +3,7 @@ import React from 'react';
 const AnimatedBackground: React.FC = () => (
   <div className="fixed inset-0 w-full h-full overflow-hidden bg-gradient-to-b from-[#0f1729] via-[#1a2744] to-[#2c3a61]">
     {/* Moon */}
-    <div className="absolute right-[10%] top-[20%] w-20 h-20 bg-[#ffd700] rounded-full shadow-[0_0_50px_#ffd700] animate-pulse" />
+    <div className="absolute right-[10%] top-[20%] w-20 h-20 bg-[#b4b4b8] rounded-full shadow-[0_0_50px_#ffd700] animate-pulse" />
     
     {/* Stars container */}
     <div className="stars-container relative w-full h-full">
