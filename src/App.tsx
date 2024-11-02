@@ -1,47 +1,19 @@
-// src/App.tsx
 import React from 'react';
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
-import { createTheme, ThemeProvider } from '@mui/material/styles';
-import { blue, pink } from '@mui/material/colors';
-import StoryGenerator from './components/StoryGenerator';
-import StoryDisplay from './components/StoryDisplay' 
-import Header from './components/Header';
-import './index.css'; 
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { Header } from './components/Header';
+import { StoryGenerator } from './components/StoryGenerator';
+import { StoryDisplay } from './components/StoryDisplay';
 
-export interface StoryData {
-  title: string;
-  StoryText: string;
-  storyUrl: string;
-  detailedStoryUrl: string;
-  images: { imageUrl: string; prompt: string }[];
-  imageContainerName: string;
-  blobStorageConnectionString: string;
-}
+const App: React.FC = () => (
+  <Router>
+    <div className="min-h-screen bg-gray-50">
+      <Header />
+      <Routes>
+        <Route path="/" element={<StoryGenerator />} />
+        <Route path="/story" element={<StoryDisplay />} />
+      </Routes>
+    </div>
+  </Router>
+);
 
-const theme = createTheme({
-    palette: {
-      primary: blue,
-      secondary: pink,
-    },
-  });
-
-  const App: React.FC = () => {
-    return (
-      <ThemeProvider theme={theme}>
-        <Router>
-          <div className="min-h-screen bg-gray-50 flex flex-col">
-            <Header />
-            <main className="flex-1 overflow-auto pt-36">
-              <div className="container mx-auto py-8">
-                <Routes>
-                  <Route path="/" element={<StoryGenerator />} />
-                  <Route path="/story" element={<StoryDisplay />} />
-                </Routes>
-              </div>
-            </main>
-          </div>
-        </Router>
-      </ThemeProvider>
-    );
-  };
 export default App;
