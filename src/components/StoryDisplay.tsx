@@ -17,9 +17,10 @@ export const StoryDisplay: React.FC = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [currentSentenceIndex, setCurrentSentenceIndex] = useState(0);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const sentences = storyData.StoryText.split(/(?<=[.!?])\s+/);
-  const currentSentenceIndexRef = useRef<number>(0);
+  const timeoutRef = useRef<NodeJS.Timeout>();
   
   const { pdfBlob, generateStoryBook } = usePdfGeneration(storyData);
 
@@ -28,50 +29,71 @@ export const StoryDisplay: React.FC = () => {
     generateStoryBook();
   }, [generateStoryBook]);
 
-  // Narration setup
+  // Cleanup function for speech synthesis and timeouts
+  useEffect(() => {
+    return () => {
+      if (utteranceRef.current) {
+        window.speechSynthesis.cancel();
+      }
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Function to speak a single sentence with image sync
+  const speakSentence = useCallback((index: number) => {
+    if (!utteranceRef.current || index >= sentences.length) {
+      setIsPlaying(false);
+      setCurrentSentenceIndex(0);
+      return;
+    }
+
+    setCurrentSentenceIndex(index);
+
+    // Update slider position
+    if (sliderRef.current) {
+      const imageIndex = Math.floor(index * (storyData.images.length / sentences.length));
+      sliderRef.current.slickGoTo(imageIndex);
+    }
+
+    utteranceRef.current.text = sentences[index];
+    
+    // Set up the onend handler for this sentence
+    utteranceRef.current.onend = () => {
+      timeoutRef.current = setTimeout(() => {
+        speakSentence(index + 1);
+      }, 100); // Reduced to 500ms delay between sentences
+    };
+
+    window.speechSynthesis.speak(utteranceRef.current);
+  }, [sentences, storyData.images.length]);
+
+  // Initialize speech synthesis
   useEffect(() => {
     if ('speechSynthesis' in window) {
       utteranceRef.current = new SpeechSynthesisUtterance();
-      
-      utteranceRef.current.onend = () => {
-        setIsPlaying(false);
-        currentSentenceIndexRef.current = 0;
-      };
-      
-      utteranceRef.current.onboundary = (event: SpeechSynthesisEvent) => {
-        if (event.name === 'sentence') {
-          const textUpToChar = storyData.StoryText.substring(0, event.charIndex);
-          const sentencesUpToChar = textUpToChar.split(/(?<=[.!?])\s+/);
-          currentSentenceIndexRef.current = sentencesUpToChar.length - 1;
-          
-          if (sliderRef.current) {
-            sliderRef.current.slickGoTo(currentSentenceIndexRef.current);
-          }
-        }
-      };
-
-      return () => {
-        if (utteranceRef.current) {
-          window.speechSynthesis.cancel();
-        }
-      };
+      const voices = window.speechSynthesis.getVoices();
+      if (utteranceRef.current) {
+        utteranceRef.current.voice = voices.find(voice => voice.name === 'Google US English Female') || voices[0];
+        utteranceRef.current.rate = 1.0; // Normal rate
+      }
     }
-  }, [storyData.StoryText]);
+  }, []);
 
   const handleNarration = useCallback(() => {
     if (isPlaying) {
       window.speechSynthesis.cancel();
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
       setIsPlaying(false);
-      currentSentenceIndexRef.current = 0;
-    } else if (utteranceRef.current) {
-      const ssmlText = sentences.join(' ');
-      utteranceRef.current.text = ssmlText;
-      const voices = window.speechSynthesis.getVoices();
-      utteranceRef.current.voice = voices.find(voice => voice.name === 'Google US English Female') || voices[2];
-      window.speechSynthesis.speak(utteranceRef.current);
+      setCurrentSentenceIndex(0);
+    } else {
       setIsPlaying(true);
+      speakSentence(currentSentenceIndex);
     }
-  }, [isPlaying, sentences]);
+  }, [isPlaying, speakSentence, currentSentenceIndex]);
 
   const downloadFile = useCallback((blob: Blob) => {
     const downloadLink = document.createElement('a');
@@ -134,12 +156,14 @@ export const StoryDisplay: React.FC = () => {
     speed: 500,
     slidesToShow: 1,
     slidesToScroll: 1,
-    adaptiveHeight: true
+    adaptiveHeight: true,
+    arrows: true,
+    swipe: !isPlaying // Disable swipe when narration is playing
   };
 
   return (
-    <div className="w-full min-h-screen bg-gray-900 p-36">
-      <div className="max-w-4xl mx-auto px-4 py-6 md:py-8">
+    <div className="w-full min-h-screen pt-40 px-4 md:px-8">
+      <div className="max-w-4xl mx-auto">
         <StoryControls
           onNewStory={() => navigate('/')}
           onNarration={handleNarration}
@@ -157,7 +181,7 @@ export const StoryDisplay: React.FC = () => {
                 <img
                   src={image.imageUrl}
                   alt={`Story illustration ${index + 1}`}
-                  className="w-full h-auto rounded-lg shadow-lg mx-auto"
+                  className="w-full h-auto rounded-lg shadow-lg mx-auto object-contain max-h-[100vh]"
                 />
               </div>
             ))}
@@ -166,7 +190,18 @@ export const StoryDisplay: React.FC = () => {
 
         <div className="mt-6 p-4 bg-purple-200 backdrop-blur-sm rounded-lg shadow-lg">
           <Typography variant="body1" className="text-lg leading-relaxed text-justify">
-            {storyData.StoryText}
+            {sentences.map((sentence, index) => (
+              <span
+                key={index}
+                className={`${
+                  index === currentSentenceIndex && isPlaying
+                    ? 'bg-purple-300'
+                    : ''
+                } transition-colors duration-200`}
+              >
+                {sentence}{' '}
+              </span>
+            ))}
           </Typography>
         </div>
       </div>
