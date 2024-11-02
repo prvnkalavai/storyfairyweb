@@ -40,8 +40,8 @@ export const StoryGenerator: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto p-6 pt-36">
-      <h1 className="text-3xl font-bold mb-6">Story Generator</h1>
-
+      <h1 className="text-3xl font-bold mb-6 text-white">Story Generator</h1>
+      <div className="p-6 bg-white/60 backdrop-blur-sm rounded-lg shadow-lg"> 
       <div className="flex items-center">
         <TextField
           label="Topic (Optional)"
@@ -113,5 +113,6 @@ export const StoryGenerator: React.FC = () => {
       </Button>
       {error && <p style={{ color: 'red', marginTop: 10 }}>{error}</p>}
     </div>
+    </div> 
   );
 };
