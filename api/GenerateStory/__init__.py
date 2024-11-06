@@ -157,7 +157,27 @@ def parse_story_json(story_response):
         logging.error(f"JSON parsing error: {e}")  # Log the specific exception
         return None, None, None  # Return None for both to indicate failure
 
-def simplify_story(detailed_story, api_key, story_length = "short"):
+async def simplify_story_with_gemini(detailed_story, api_key, story_length = "short"):
+    try:
+        sentence_count = { "short": 5, "medium": 7, "long": 9}
+        num_sentences = sentence_count.get(story_length, 5)
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel('gemini-1.5-flash') 
+        prompt = f"""
+        Here's a children's story: {detailed_story}
+        Please simplify the story into {num_sentences} sentences, removing repetitive descriptions while maintaining the same narrative. Make the sentences as long and descriptive as possible while keeping the essence and key elements of the story intact.
+        """
+        #logging.info(f"Simplified story prompt:\n{prompt}")
+        response = model.generate_content(prompt)
+        simplified_story = response.text.strip()
+        #logging.info(f"Simplified story:\n{simplified_story}")
+        return simplified_story
+
+    except Exception as e:
+        logging.error(f"Error simplifying story: {e}")
+        return detailed_story  # Return original story if simplification fails
+
+async def simplify_story(detailed_story, api_key, story_length = "short"):
     try:
         sentence_count = { "short": 5, "medium": 7, "long": 9}
         num_sentences = sentence_count.get(story_length, 5)
@@ -500,6 +520,7 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
                 image_model = 'flux-schnell'
 
         # Generate story using the specified model
+        logging.info(f"Generating story with model: {story_model}")
         if story_model == 'gemini':
             title, story, sentences = await generate_story_gemini(topic, config.gemini_key, story_length)
         elif story_model == 'openai':
@@ -522,9 +543,13 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
         detailed_story_filename = f"{title}_{unique_id}_detailed.txt"
 
         # Simplify story
-        simplified_story = simplify_story(story, config.openai_key, story_length)
+        #logging.info(f"Simplifying story with an OpenAI call")
+        #simplified_story = await simplify_story(story, config.openai_key, story_length)
+        logging.info(f"Simplifying story with an Gemini call")
+        simplified_story = await simplify_story_with_gemini(story, config.gemini_key, story_length)
 
         # Save stories to blob storage in parallel
+        logging.info(f"Saving stories to blob storage")
         with ThreadPoolExecutor() as executor:
             simplified_future = executor.submit(
                 save_to_blob_storage, 
@@ -548,6 +573,7 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
             return func.HttpResponse("Failed to upload stories to blob storage", status_code=500)
 
         # Generate images using the specified model
+        logging.info(f"Generating images with model: {image_model}")
         if image_model == 'flux_schnell':
             image_results = await generate_images_parallel(
                 sentences, title, image_style,
