@@ -4,12 +4,14 @@ import { Button, TextField, MenuItem, SelectChangeEvent, FormControl, InputLabel
 import { Mic, MicOff } from 'lucide-react';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { generateStory } from '../services/api';
-import { IMAGE_STYLES, STORY_LENGTHS } from '../constants/config';
+import { IMAGE_STYLES, STORY_LENGTHS, STORY_MODELS, IMAGE_MODELS } from '../constants/config';
 
 export const StoryGenerator: React.FC = () => {
   const [topic, setTopic] = useState('');
   const [storyLength, setStoryLength] = useState<"short" | "medium" | "long">(STORY_LENGTHS.SHORT);
   const [imageStyle, setImageStyle] = useState(IMAGE_STYLES.WHIMSICAL);
+  const [storyModel, setStoryModel] = useState(STORY_MODELS.GEMINI_1_5_FLASH);
+  const [imageModel, setImageModel] = useState(IMAGE_MODELS.FLUX_SCHNELL);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
@@ -23,7 +25,7 @@ export const StoryGenerator: React.FC = () => {
     setIsLoading(true);
     
     try {
-      const storyData = await generateStory(topic, storyLength, imageStyle);
+      const storyData = await generateStory(topic, storyLength, imageStyle, storyModel, imageModel);
       navigate('/story', { state: { storyData } });
     } catch (error) {
       console.error('Error:', error);
@@ -90,6 +92,46 @@ export const StoryGenerator: React.FC = () => {
           {Object.entries(IMAGE_STYLES).map(([key, value]) => (
             <MenuItem key={value} value={value}>
               {key.charAt(0) + key.slice(1).toLowerCase()}
+            </MenuItem>
+          ))}
+        </Select>
+      </FormControl>
+      <FormControl fullWidth margin="normal">
+        <InputLabel id="story-model-label">Story Model</InputLabel>
+        <Select
+          labelId="story-model-label"
+          id="story-model"
+          value={storyModel}
+          label="Story Model"
+          onChange={(e: SelectChangeEvent<"gemini">) => setStoryModel(e.target.value as "gemini")}
+        >
+          {Object.entries(STORY_MODELS).map(([key, value]) => (
+            <MenuItem key={value} value={value}>
+              {key 
+              .split('_')  
+              .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()) 
+              .join('_')  
+              }
+            </MenuItem>
+          ))}
+        </Select>
+      </FormControl>
+      <FormControl fullWidth margin="normal">
+        <InputLabel id="image-model-label">Image Model</InputLabel>
+        <Select
+          labelId="image-model-label"
+          id="image-model"
+          value={imageModel}
+          label="Image Model"
+          onChange={(e: SelectChangeEvent<"flux_schnell">) => setImageModel(e.target.value as "flux_schnell")}
+        >
+          {Object.entries(IMAGE_MODELS).map(([key, value]) => (
+            <MenuItem key={value} value={value}>
+              {key 
+              .split('_')  
+              .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()) 
+              .join('_')  
+              }
             </MenuItem>
           ))}
         </Select>

@@ -40,7 +40,26 @@ async def generate_story_openai(topic, api_key, story_length):
     except Exception as e:
         logging.error(f"OpenAI error: {e}")
         return None, None, None
-    
+
+async def generate_story_grok(topic, api_key, story_length):
+    try:
+        client = openai.OpenAI(api_key=api_key, base_url="https://api.x.ai/v1")
+        prompt = create_story_prompt(topic, story_length)
+        response = client.chat.completions.create(
+            model="grok-beta",  
+            messages=[
+                {"role": "system", "content": "You are Grok, a creative storyteller for children."},
+                {"role": "user", "content": prompt}
+            ],
+        )
+        logging.info(f"Raw response from Grok: {response.choices[0].message.content}")
+        title, story, sentences = parse_story_json(response.choices[0].message.content.strip())
+        logging.info(f"Parsed JSON story: {story}")
+        return title, story, sentences
+    except Exception as e:
+        logging.error(f"Grok error: {e}")
+        return None, None, None 
+
 async def generate_story_gemini(topic, api_key, story_length):
     try:
         genai.configure(api_key=api_key)
@@ -63,7 +82,7 @@ def create_story_prompt(topic, story_length="short"):
         prompt = f"""
         Write a {story_length}, imaginative and creative {num_sentences} sentence children's story suitable for young readers about {topic}. The story should have a happy ending and be filled with wonder and excitement..
 
-            Please provide the response as a JSON object without any markdown elements or formatting. Format the story as a JSON object with each sentence as a separate entry in an array of sentences under the 'sentences' property. Additionally, generate a creative title for the story and include it in a separate property called 'Title' in the JSON response object. DO NOT include any additional formatting or markdown.       
+            Please provide the response as a JSON object without any markdown elements or formatting. Format the story as a JSON object with each sentence as a separate entry in an array of sentences under the 'sentences' property. Additionally, generate a unique and creative title for the story and include it in a separate property called 'Title' in the JSON response object. DO NOT include any additional formatting or markdown.       
             Crucially, EVERY sentence must include these details:
             * **Central Character:**  Always mention the main character by name. Provide a detailed description of their appearance, personality, attire, accessories, and any unique attributes like clothing, toys, skin color, hair/fur color,etc in EVERY sentence. Use vivid language and sensory details. Ensure these details remain consistent across all sentences in which the central character appears.  Be extremely repetitive with explicit details.
             * **Scene:**  Vividly describe the setting in EVERY sentence, including the time of day, weather, and specific details about the environment. Use descriptive language to create a strong visual image. Ensure these details remain consistent across all sentences.  If the scene changes, the same rule applies for the new scene as well.  Be extremely repetitive with explicit details.
@@ -82,7 +101,7 @@ def create_story_prompt(topic, story_length="short"):
         prompt = """
         Write a random {story_length}, imaginative and creative {num_sentences} sentence children's story suitable for young readers. The story should have a happy ending and be filled with wonder and excitement..  
 
-            Please provide the response as a JSON object without any markdown elements or formatting. Format the story as a JSON object with each sentence as a separate entry in an array of sentences under the 'sentences' property. Additionally, generate a creative title for the story and include it in a separate property called 'Title' in the JSON response object. DO NOT include any additional formatting or markdown.       
+            Please provide the response as a JSON object without any markdown elements or formatting. Format the story as a JSON object with each sentence as a separate entry in an array of sentences under the 'sentences' property. Additionally, generate a unique and creative title for the story and include it in a separate property called 'Title' in the JSON response object. DO NOT include any additional formatting or markdown.       
             Crucially, EVERY sentence must include these details:
             * **Central Character:**  Always mention the main character by name. Provide a detailed description of their appearance, personality, attire, accessories, and any unique attributes like clothing, toys, skin color, hair/fur color,etc in EVERY sentence. Use vivid language and sensory details. Ensure these details remain consistent across all sentences in which the central character appears.  Be extremely repetitive with explicit details.
             * **Scene:**  Vividly describe the setting in EVERY sentence, including the time of day, weather, and specific details about the environment. Use descriptive language to create a strong visual image. Ensure these details remain consistent across all sentences.  If the scene changes, the same rule applies for the new scene as well.  Be extremely repetitive with explicit details.
@@ -101,6 +120,9 @@ def create_story_prompt(topic, story_length="short"):
 
 def parse_story_json(story_response):
     try:
+        if story_response.startswith('```json') and story_response.endswith('```'):
+            # Remove markdown elements
+            story_response = story_response.lstrip('```json\n').rstrip('```')
         story_json = json.loads(story_response)  
         title = story_json['Title']
         raw_sentences = story_json['sentences']
@@ -181,7 +203,7 @@ async def generate_image_stable_diffusion(prompt,reference_image_url=None):
         "prompt": prompt,
         "aspect_ratio": "1:1",
         "output_quality": 100,
-        "negative_prompt": "ugly, blurry, distorted, text, watermark",
+        "negative_prompt": "ugly, blurry, distorted, text, watermark, extra limbs, extra body parts",
         "prompt_strength": 0.85,
         "scheduler": "K_EULER_ANCESTRAL",
         "width": 768, 
@@ -226,6 +248,49 @@ async def generate_image_flux_schnell(prompt):
         return image_url, prompt  
     except Exception as e:
         logging.error(f"Flux Schnell error: {e}")
+        return None, prompt
+
+async def generate_image_flux_pro(prompt):
+    try:
+        output = await asyncio.get_event_loop().run_in_executor(
+            None,
+            lambda: replicate.run(
+                "black-forest-labs/flux-1.1-pro",
+                input={
+                    "prompt": prompt,
+                    "aspect_ratio": "1:1",
+                    "output_format": "webp",
+                    "output_quality": 100,
+                    "safety_tolerance": 1,
+                    "prompt_upsampling": False
+                }
+            )
+        )
+        logging.info(f"Output : {output} " )
+        image_url = output
+        logging.info(f"Generated image (Flux Pro): {image_url}")  
+        return image_url, prompt  
+    except Exception as e:
+        logging.error(f"Flux Pro error: {e}")
+        return None, prompt
+
+async def generate_image_google_imagen(prompt, api_key):
+    try:
+        genai.configure(api_key=api_key)
+        model = genai.ImageGenerationModel("imagen-3.0-generate-001")
+        output = await model.generate_images(
+            prompt=prompt,
+            number_of_images=1,
+            safety_filter_level="block_only_high",
+            person_generation="allow_adult",
+            aspect_ratio="1:1",
+            negative_prompt="Outside, Text, Distorted",
+        )
+        image_url = output.image_url
+        logging.info(f"Generated image (Google Imagen 3 Fast): {image_url}")
+        return image_url, prompt
+    except Exception as e:
+        logging.error(f"Google Imagen 3 Fast error: {e}")
         return None, prompt
 
 def save_to_blob_storage(data, content_type, container_name, file_name, connection_string): 
@@ -299,6 +364,8 @@ def get_secrets():
             storage_conn = client.get_secret("storage-connection-string").value
             account_key = client.get_secret("account-key").value
             account_name = client.get_secret("account-name").value
+            grok_key = client.get_secret("grok-api-key").value
+ 
            
             logging.info("Secrets successfully fetched from Key Vault") # Add logging for successful fetch.
         else:
@@ -313,27 +380,33 @@ def get_secrets():
             storage_conn = storage_conn or os.environ.get("STORAGE_CONNECTION_STRING")
             account_key = account_key or os.environ.get("ACCOUNT_KEY")
             account_name = account_name or os.environ.get("ACCOUNT_NAME")
+            grok_key = grok_key or os.environ.get("GROK_API_KEY")
 
 
-        if not all([openai_key, gemini_key, replicate_token, storage_conn, account_key]):
+
+        if not all([openai_key, gemini_key, replicate_token, storage_conn, account_key, grok_key]):
             raise ValueError("Required secrets not found in environment variables or Key Vault")
 
-        return openai_key, gemini_key, replicate_token, storage_conn, account_key, account_name
+        return openai_key, gemini_key, replicate_token, storage_conn, account_key, account_name, grok_key
 
     except Exception as e:
         logging.exception(f"Error getting secrets: {e}") # Log the exception
         raise
 
-async def generate_images_parallel(sentences, story_title, image_style, connection_string, account_key, account_name):
+async def generate_images_parallel(sentences, story_title, image_style, connection_string, account_key, account_name, image_model, gemini_api_key=None):
     async with aiohttp.ClientSession() as session:
         tasks = []
         for i, sentence in enumerate(sentences):
-
             detailed_prompt, _ = construct_detailed_prompt(sentence, image_style)
             async def generate_and_save_image(prompt,index):
-                image_url,prompt_used = await generate_image_flux_schnell(prompt)
-                if not image_url:
+                if image_model == 'flux_schnell':
+                    image_url,prompt_used = await generate_image_flux_schnell(prompt)
+                elif image_model == 'flux_pro':
+                    image_url,prompt_used = await generate_image_flux_pro(prompt)
+                elif image_model == 'stable_diffusion_3':
                     image_url,prompt_used = await generate_image_stable_diffusion(prompt)
+                elif image_model == 'imagen_3':
+                    image_url,prompt_used = await generate_image_google_imagen(detailed_prompt, gemini_api_key)
                     if not image_url:
                         return None
                 try:
@@ -363,8 +436,8 @@ async def generate_images_parallel(sentences, story_title, image_style, connecti
                 
                 except Exception as e:
                     logging.error(f"Error processing images : {e}")
-            tasks.append(generate_and_save_image(detailed_prompt, i))
-        results=await asyncio.gather(*tasks)
+            tasks.append(generate_and_save_image(detailed_prompt, i))   
+        results = await asyncio.gather(*tasks)
         ordered_results = [None] * len(sentences)
         for i, result in enumerate(results):
             if result is not None:
@@ -374,7 +447,7 @@ async def generate_images_parallel(sentences, story_title, image_style, connecti
 async def main(req: func.HttpRequest) -> func.HttpResponse:
     try:
         # Get secrets (existing code)
-        openai_api_key, GEMINI_API_KEY, REPLICATE_API_TOKEN, STORAGE_CONNECTION_STRING, ACCOUNT_KEY, ACCOUNT_NAME = get_secrets()
+        openai_api_key, GEMINI_API_KEY, REPLICATE_API_TOKEN, STORAGE_CONNECTION_STRING, ACCOUNT_KEY, ACCOUNT_NAME, grok_api_key = get_secrets()
         openai.api_key = openai_api_key
         os.environ["REPLICATE_API_TOKEN"] = REPLICATE_API_TOKEN
         
@@ -417,15 +490,41 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
             except ValueError:
                 image_style = 'whimsical'
 
-        # Generate story using Gemini (faster) with fallback to OpenAI
-        title, story, sentences = await generate_story_gemini(topic, GEMINI_API_KEY, story_length)
-        if not story:
+        # Get story and image generation models
+        story_model = req.params.get('storyModel', 'gemini')
+        if not story_model:
+            try:
+                req_body = req.get_json()
+                story_model = req_body.get('storyModel', 'gemini')
+            except ValueError:
+                story_model = 'gemini'
+
+        image_model = req.params.get('imageModel', 'flux_schnell')
+        if not image_model:
+            try:
+                req_body = req.get_json()
+                image_model = req_body.get('imageModel', 'flux_schnell')
+            except ValueError:
+                image_model = 'flux-schnell'
+
+        # Generate story using the specified model
+        if story_model == 'gemini':
+            title, story, sentences = await generate_story_gemini(topic, GEMINI_API_KEY, story_length)
+        elif story_model == 'openai':
             title, story, sentences = await generate_story_openai(topic, openai_api_key, story_length)
-            if not story:
-                return func.HttpResponse("Failed to generate story", status_code=500)
+        elif story_model == 'grok':
+            title, story, sentences = await generate_story_grok(topic, grok_api_key, story_length)
+        else:
+            return func.HttpResponse(
+                json.dumps({"error": f"Invalid story model: {story_model}"}),
+                mimetype="application/json",
+                status_code=400
+            )
+
+        if not story:
+            return func.HttpResponse("Failed to generate story", status_code=500)
 
         # Generate story title and filenames
-        #story_title = topic.replace(' ', '_') if topic and topic != '""' else str(uuid.uuid4())
         simplified_story_filename = f"{title}.txt"
         detailed_story_filename = f"{title}_detailed.txt"
 
@@ -455,11 +554,33 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
         if not all([simplified_story_url, detailed_story_url]):
             return func.HttpResponse("Failed to upload stories to blob storage", status_code=500)
 
-        # Generate images in parallel
-        image_results = await generate_images_parallel(
-            sentences, title, image_style,
-            STORAGE_CONNECTION_STRING, ACCOUNT_KEY, ACCOUNT_NAME
-        )
+        # Generate images using the specified model
+        if image_model == 'flux_schnell':
+            image_results = await generate_images_parallel(
+                sentences, title, image_style,
+                STORAGE_CONNECTION_STRING, ACCOUNT_KEY, ACCOUNT_NAME, image_model
+            )
+        elif image_model == 'flux_pro':
+            image_results = await generate_images_parallel(
+                sentences, title, image_style,
+                STORAGE_CONNECTION_STRING, ACCOUNT_KEY, ACCOUNT_NAME, image_model
+            )
+        elif image_model == 'stable_diffusion_3':
+            image_results = await generate_images_parallel(
+                sentences, title, image_style,
+                STORAGE_CONNECTION_STRING, ACCOUNT_KEY, ACCOUNT_NAME, image_model
+            )
+        elif image_model == 'imagen_3':
+            image_results = await generate_images_parallel(
+                sentences, title, image_style,
+                STORAGE_CONNECTION_STRING, ACCOUNT_KEY, ACCOUNT_NAME, image_model, GEMINI_API_KEY
+            )
+        else:
+            return func.HttpResponse(
+                json.dumps({"error": f"Invalid image model: {image_model}"}),
+                mimetype="application/json",
+                status_code=400
+            ) 
 
         # Prepare response
         response_data = {

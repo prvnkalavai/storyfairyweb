@@ -5,7 +5,9 @@ import { StoryData } from "../types";
 export const generateStory = async (
   topic: string,
   storyLength: string,
-  imageStyle: string
+  imageStyle: string,
+  storyModel: string,
+  imageModel: string
 ): Promise<StoryData> => {
   const localDev = window.location.hostname === "localhost";
   const baseUrl = localDev 
@@ -15,7 +17,9 @@ export const generateStory = async (
   const queryParams = new URLSearchParams({
     topic: topic || '""',
     storyLength,
-    imageStyle
+    imageStyle,
+    storyModel,
+    imageModel
   });
   const apiURL = localDev ? `${baseUrl}&${queryParams.toString()}` : `${baseUrl}?${queryParams.toString()}`;
   const response = await fetch(apiURL, {
