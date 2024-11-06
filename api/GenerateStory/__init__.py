@@ -351,7 +351,7 @@ def generate_sas_token(account_name, account_key, container_name, blob_name, api
     logging.info(f"Azure Storage Blob SDK version: {__version__}")
     est = pytz.timezone('US/Eastern')
     now = datetime.now(est)
-    expiry_time = now + timedelta(hours=1)
+    expiry_time = now + timedelta(minutes=5)
     
     sas_token = generate_blob_sas(
         account_name=account_name,
