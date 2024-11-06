@@ -15,11 +15,23 @@ from dotenv import load_dotenv
 import pytz
 import google.generativeai as genai
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
 
 load_dotenv()
 
 STORY_CONTAINER_NAME = "storyfairy-stories" 
 IMAGE_CONTAINER_NAME = "storyfairy-images" 
+
+@dataclass
+class Config:
+    openai_key: str
+    gemini_key: str
+    replicate_token: str
+    storage_conn: str
+    account_key: str
+    account_name: str
+    grok_key: str
+
 
 async def generate_story_openai(topic, api_key, story_length):
     try:
@@ -33,9 +45,9 @@ async def generate_story_openai(topic, api_key, story_length):
             ],
             max_tokens=500
         )
-        logging.info(f"Raw response from OpenAI: {response.choices[0].message.content}")
+        #logging.info(f"Raw response from OpenAI: {response.choices[0].message.content}")
         title, story, sentences = parse_story_json(response.choices[0].message.content.strip())
-        logging.info(f"Parsed JSON story: {story}")
+        #logging.info(f"Parsed JSON story: {story}")
         return title, story, sentences
     except Exception as e:
         logging.error(f"OpenAI error: {e}")
@@ -52,9 +64,9 @@ async def generate_story_grok(topic, api_key, story_length):
                 {"role": "user", "content": prompt}
             ],
         )
-        logging.info(f"Raw response from Grok: {response.choices[0].message.content}")
+        #logging.info(f"Raw response from Grok: {response.choices[0].message.content}")
         title, story, sentences = parse_story_json(response.choices[0].message.content.strip())
-        logging.info(f"Parsed JSON story: {story}")
+        #logging.info(f"Parsed JSON story: {story}")
         return title, story, sentences
     except Exception as e:
         logging.error(f"Grok error: {e}")
@@ -66,9 +78,9 @@ async def generate_story_gemini(topic, api_key, story_length):
         prompt = create_story_prompt(topic, story_length)
         model = genai.GenerativeModel('gemini-1.5-flash') 
         response = model.generate_content(prompt)
-        logging.info(f"Raw response from Gemini: {response.text}")
+        #logging.info(f"Raw response from Gemini: {response.text}")
         title, story, sentences = parse_story_json(response.text.strip())
-        logging.info(f"Parsed JSON story: {story}")
+        #logging.info(f"Parsed JSON story: {story}")
         return title, story, sentences
     except Exception as e:
         logging.error(f"Gemini error: {e}")
@@ -160,7 +172,7 @@ def simplify_story(detailed_story, api_key, story_length = "short"):
             max_tokens=300 # Adjust if needed
         )
         simplified_story = response.choices[0].message.content
-        logging.info(f"Simplified story:\n{simplified_story}")
+        #logging.info(f"Simplified story:\n{simplified_story}")
         return simplified_story
 
     except Exception as e:
@@ -337,63 +349,42 @@ def construct_detailed_prompt(sentence, image_style="whimsical"):
     prompt = f"{sentence}, {image_style} style, children's book illustration, vibrant colors"
     return prompt, None
 
-def get_secrets():
-    """Get secrets from either Key Vault or environment variables"""
-    openai_key = None
-    gemini_key = None
-    replicate_token = None
-    storage_conn = None
-    account_key = None
-    account_name = None
-
+async def get_secrets() -> Config:
+    """Get secrets from Key Vault or environment variables"""
     try:
-        # Attempt to retrieve from Key Vault first (best practice)
-        key_vault_uri = os.environ.get("KEY_VAULT_URI") # Get Key Vault URI
-        if key_vault_uri:  # Only attempt Key Vault access if URI is available
-            logging.info("Attempting to fetch secrets from Key Vault")
-
-            if os.environ.get("AZURE_FUNCTIONS_ENVIRONMENT") == "Development": # For local dev, authenticate using logged in user with az login
-               credential = DefaultAzureCredential()
-            else:
-               credential = DefaultAzureCredential() # For Azure, no credentials needed since function app will use Managed Identity
-
+        key_vault_uri = os.environ.get("KEY_VAULT_URI")
+        if key_vault_uri:
+            credential = DefaultAzureCredential()
             client = SecretClient(vault_url=key_vault_uri, credential=credential)
-            openai_key = client.get_secret("openai-api-key").value
-            gemini_key = client.get_secret("gemini-api-key").value
-            replicate_token = client.get_secret("replicate-api-token").value
-            storage_conn = client.get_secret("storage-connection-string").value
-            account_key = client.get_secret("account-key").value
-            account_name = client.get_secret("account-name").value
-            grok_key = client.get_secret("grok-api-key").value
- 
-           
+            
+            secrets = await asyncio.gather(
+                asyncio.to_thread(client.get_secret, "openai-api-key"),
+                asyncio.to_thread(client.get_secret, "gemini-api-key"),
+                asyncio.to_thread(client.get_secret, "replicate-api-token"),
+                asyncio.to_thread(client.get_secret, "storage-connection-string"),
+                asyncio.to_thread(client.get_secret, "account-key"),
+                asyncio.to_thread(client.get_secret, "account-name"),
+                asyncio.to_thread(client.get_secret, "grok-api-key")
+            )
             logging.info("Secrets successfully fetched from Key Vault") # Add logging for successful fetch.
-        else:
-            logging.warning("Key Vault URI not found. Falling back to environment variables.")
-
-        # Fallback to environment variables ONLY if Key Vault access fails or Key Vault URI is not set
-        if not all([openai_key, gemini_key, replicate_token, storage_conn, account_key]):
-            logging.warning("Some secrets not found in Key Vault. Checking for environment variables")
-            openai_key = openai_key or os.environ.get("OPENAI_API_KEY") # Assign from env variables
-            gemini_key = gemini_key or os.environ.get("GEMINI_API_KEY")
-            replicate_token = replicate_token or os.environ.get("REPLICATE_API_TOKEN")
-            storage_conn = storage_conn or os.environ.get("STORAGE_CONNECTION_STRING")
-            account_key = account_key or os.environ.get("ACCOUNT_KEY")
-            account_name = account_name or os.environ.get("ACCOUNT_NAME")
-            grok_key = grok_key or os.environ.get("GROK_API_KEY")
-
-
-
-        if not all([openai_key, gemini_key, replicate_token, storage_conn, account_key, grok_key]):
-            raise ValueError("Required secrets not found in environment variables or Key Vault")
-
-        return openai_key, gemini_key, replicate_token, storage_conn, account_key, account_name, grok_key
-
+            return Config(*(s.value for s in secrets))
+        
+        # Fallback to environment variables
+        logging.warning("Key Vault URI not found. Falling back to environment variables.")
+        return Config(
+            openai_key=os.environ["OPENAI_API_KEY"],
+            gemini_key=os.environ["GEMINI_API_KEY"],
+            replicate_token=os.environ["REPLICATE_API_TOKEN"],
+            storage_conn=os.environ["STORAGE_CONNECTION_STRING"],
+            account_key=os.environ["ACCOUNT_KEY"],
+            account_name=os.environ["ACCOUNT_NAME"],
+            grok_key=os.environ["GROK_API_KEY"]
+        )   
     except Exception as e:
         logging.exception(f"Error getting secrets: {e}") # Log the exception
         raise
 
-async def generate_images_parallel(sentences, story_title, image_style, connection_string, account_key, account_name, image_model, gemini_api_key=None):
+async def generate_images_parallel(sentences, story_title, image_style, connection_string, account_key, account_name, image_model, unique_id, gemini_api_key=None):
     async with aiohttp.ClientSession() as session:
         tasks = []
         for i, sentence in enumerate(sentences):
@@ -412,7 +403,7 @@ async def generate_images_parallel(sentences, story_title, image_style, connecti
                 try:
                     async with session.get(image_url) as response:
                         image_data = await response.read()
-                        image_filename = f"{story_title}-image{index+1}.png"
+                        image_filename = f"{story_title}_{unique_id}-image{index+1}.png"
             
                         # Use ThreadPoolExecutor for blob storage operations
                         with ThreadPoolExecutor() as executor:
@@ -447,9 +438,10 @@ async def generate_images_parallel(sentences, story_title, image_style, connecti
 async def main(req: func.HttpRequest) -> func.HttpResponse:
     try:
         # Get secrets (existing code)
-        openai_api_key, GEMINI_API_KEY, REPLICATE_API_TOKEN, STORAGE_CONNECTION_STRING, ACCOUNT_KEY, ACCOUNT_NAME, grok_api_key = get_secrets()
-        openai.api_key = openai_api_key
-        os.environ["REPLICATE_API_TOKEN"] = REPLICATE_API_TOKEN
+        #openai_api_key, GEMINI_API_KEY, REPLICATE_API_TOKEN, STORAGE_CONNECTION_STRING, ACCOUNT_KEY, ACCOUNT_NAME, grok_api_key = get_secrets()
+        config = await get_secrets()
+        openai.api_key = config.openai_key
+        os.environ["REPLICATE_API_TOKEN"] = config.replicate_token
         
         # Get topic from either query params or request body
         topic = req.params.get('topic') 
@@ -509,11 +501,11 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
 
         # Generate story using the specified model
         if story_model == 'gemini':
-            title, story, sentences = await generate_story_gemini(topic, GEMINI_API_KEY, story_length)
+            title, story, sentences = await generate_story_gemini(topic, config.gemini_key, story_length)
         elif story_model == 'openai':
-            title, story, sentences = await generate_story_openai(topic, openai_api_key, story_length)
+            title, story, sentences = await generate_story_openai(topic, config.openai_key, story_length)
         elif story_model == 'grok':
-            title, story, sentences = await generate_story_grok(topic, grok_api_key, story_length)
+            title, story, sentences = await generate_story_grok(topic, config.grok_key, story_length)
         else:
             return func.HttpResponse(
                 json.dumps({"error": f"Invalid story model: {story_model}"}),
@@ -525,11 +517,12 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
             return func.HttpResponse("Failed to generate story", status_code=500)
 
         # Generate story title and filenames
-        simplified_story_filename = f"{title}.txt"
-        detailed_story_filename = f"{title}_detailed.txt"
+        unique_id = str(uuid.uuid4())
+        simplified_story_filename = f"{title}_{unique_id}.txt"
+        detailed_story_filename = f"{title}_{unique_id}_detailed.txt"
 
         # Simplify story
-        simplified_story = simplify_story(story, openai_api_key, story_length)
+        simplified_story = simplify_story(story, config.openai_key, story_length)
 
         # Save stories to blob storage in parallel
         with ThreadPoolExecutor() as executor:
@@ -538,14 +531,14 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
                 simplified_story, "text/plain", 
                 STORY_CONTAINER_NAME, 
                 simplified_story_filename, 
-                STORAGE_CONNECTION_STRING
+                config.storage_conn
             )
             detailed_future = executor.submit(
                 save_to_blob_storage,
                 story, "text/plain",
                 STORY_CONTAINER_NAME,
                 detailed_story_filename,
-                STORAGE_CONNECTION_STRING
+                config.storage_conn
             )
             
             simplified_story_url = simplified_future.result()
@@ -558,22 +551,22 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
         if image_model == 'flux_schnell':
             image_results = await generate_images_parallel(
                 sentences, title, image_style,
-                STORAGE_CONNECTION_STRING, ACCOUNT_KEY, ACCOUNT_NAME, image_model
+                config.storage_conn, config.account_key, config.account_name, image_model, unique_id
             )
         elif image_model == 'flux_pro':
             image_results = await generate_images_parallel(
                 sentences, title, image_style,
-                STORAGE_CONNECTION_STRING, ACCOUNT_KEY, ACCOUNT_NAME, image_model
+                config.storage_conn, config.account_key, config.account_name, image_model, unique_id
             )
         elif image_model == 'stable_diffusion_3':
             image_results = await generate_images_parallel(
                 sentences, title, image_style,
-                STORAGE_CONNECTION_STRING, ACCOUNT_KEY, ACCOUNT_NAME, image_model
+                config.storage_conn, config.account_key, config.account_name, image_model, unique_id
             )
         elif image_model == 'imagen_3':
             image_results = await generate_images_parallel(
                 sentences, title, image_style,
-                STORAGE_CONNECTION_STRING, ACCOUNT_KEY, ACCOUNT_NAME, image_model, GEMINI_API_KEY
+                config.storage_conn, config.account_key, config.account_name, image_model, unique_id, config.gemini_key
             )
         else:
             return func.HttpResponse(
@@ -590,7 +583,7 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
             "detailedStoryUrl": detailed_story_url,
             "images": image_results,
             "imageContainerName": IMAGE_CONTAINER_NAME,
-            "blobStorageConnectionString": STORAGE_CONNECTION_STRING
+            "blobStorageConnectionString": config.storage_conn
         }
 
         return func.HttpResponse(
