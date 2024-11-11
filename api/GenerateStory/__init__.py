@@ -543,10 +543,10 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
         detailed_story_filename = f"{title}_{unique_id}_detailed.txt"
 
         # Simplify story
-        #logging.info(f"Simplifying story with an OpenAI call")
-        #simplified_story = await simplify_story(story, config.openai_key, story_length)
-        logging.info(f"Simplifying story with an Gemini call")
-        simplified_story = await simplify_story_with_gemini(story, config.gemini_key, story_length)
+        logging.info(f"Simplifying story with an OpenAI call")
+        simplified_story = await simplify_story(story, config.openai_key, story_length)
+        #logging.info(f"Simplifying story with an Gemini call")
+        #simplified_story = await simplify_story_with_gemini(story, config.gemini_key, story_length)
 
         # Save stories to blob storage in parallel
         logging.info(f"Saving stories to blob storage")
