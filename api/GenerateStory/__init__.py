@@ -442,9 +442,9 @@ async def get_secrets() -> Config:
             account_key=os.environ["ACCOUNT_KEY"],
             account_name=os.environ["ACCOUNT_NAME"],
             grok_key=os.environ["GROK_API_KEY"],
-            b2c_client_id=os.environ["B2C_CLIENT_ID"],
-            b2c_tenant=os.environ["B2C_TENANT"],
-            b2c_user_flow=os.environ["B2C_USER_FLOW"]
+            b2c_client_id=os.environ["REACT_APP_B2C_CLIENT_ID"],
+            b2c_tenant=os.environ["REACT_APP_B2C_TENANT"],
+            b2c_user_flow=os.environ["REACT_APP_B2C_USER_FLOW"]
         )   
     except Exception as e:
         logging.exception(f"Error getting secrets: {e}") # Log the exception

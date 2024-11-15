@@ -1,5 +1,5 @@
 // App.tsx
-import React from 'react';
+import React, {useEffect} from 'react';
 import { MsalProvider, MsalAuthenticationTemplate } from '@azure/msal-react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { StoryGenerator } from './components/StoryGenerator';
@@ -8,8 +8,17 @@ import { Header } from './components/Header';
 import AnimatedBackground from './components/AnimatedBackground';
 import { msalInstance } from './authConfig';
 import { InteractionType } from '@azure/msal-browser';
+import { Howl } from 'howler';
 
 const App: React.FC = () => {
+    useEffect(() => {
+        const sound = new Howl({
+            src: ['./sounds/ForestLullabye_AsherFulero.mp3'],
+            loop: true,
+            volume: 0.1,
+        });
+        sound.play();
+    }, []);
     return (
         <MsalProvider instance={msalInstance}>
             <Router>
