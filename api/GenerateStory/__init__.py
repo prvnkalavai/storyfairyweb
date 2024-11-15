@@ -27,7 +27,7 @@ load_dotenv()
 
 STORY_CONTAINER_NAME = "storyfairy-stories" 
 IMAGE_CONTAINER_NAME = "storyfairy-images" 
-auth_middleware = None
+#auth_middleware = None
 
 @dataclass
 class Config:

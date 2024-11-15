@@ -41,6 +41,5 @@ export const STORY_LENGTHS = {
     FANTASY:'fantasy',
     FAIRYTALE:'fairytale',
     MYSTERY:'mystery',
-    SCIENCE_FICTION:'science_fiction',
-    BIOGRAPHY:'biography'
+    SCIENCE_FICTION:'science_fiction'
   } as const;
