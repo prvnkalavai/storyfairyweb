@@ -14,11 +14,30 @@ const requiredEnvVars = {
     'REACT_APP_B2C_USER_FLOW': userFlow
 };
 
+// Log all environment variables (excluding actual values for security)
+console.log('Available environment variables:', 
+    Object.keys(process.env)
+        .filter(key => key.startsWith('REACT_APP_'))
+        .map(key => `${key}: ${process.env[key] ? '[SET]' : '[NOT SET]'}`
+));
+
 Object.entries(requiredEnvVars).forEach(([name, value]) => {
     if (!value) {
+        console.error(`Missing environment variable: ${name}`);
+        console.log('Environment context:', {
+            isDevelopment: process.env.NODE_ENV === 'development',
+            isProduction: process.env.NODE_ENV === 'production',
+            baseUrl: window.location.origin,
+        });
         throw new Error(`Environment variable ${name} must be set.`);
     }
 });
+
+//Object.entries(requiredEnvVars).forEach(([name, value]) => {
+//    if (!value) {
+//       throw new Error(`Environment variable ${name} must be set.`);
+//    }
+//});
 
 // API Configuration
 export const apiConfig = {
