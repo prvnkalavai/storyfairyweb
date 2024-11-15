@@ -1,10 +1,10 @@
 import * as msal from '@azure/msal-browser';
 
 // Configuration constants
-const clientId = process.env.REACT_APP_B2C_CLIENT_ID;
-const tenantName = process.env.REACT_APP_B2C_TENANT;
-const tenantId = process.env.REACT_APP_B2C_TENANT_ID;
-const userFlow = process.env.REACT_APP_B2C_USER_FLOW;
+const clientId = process.env.B2C_CLIENT_ID;
+const tenantName = process.env.B2C_TENANT;
+const tenantId = process.env.B2C_TENANT_ID;
+const userFlow = process.env.B2C_USER_FLOW;
 
 // Validate required environment variables
 const requiredEnvVars = {
