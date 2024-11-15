@@ -1,17 +1,21 @@
 import { StoryData } from "../types";
 
-//const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || '';
-
 export const generateStory = async (
   topic: string,
   storyLength: string,
   imageStyle: string,
   storyModel: string,
-  imageModel: string
+  imageModel: string,
+  storyStyle: string,
+  accessToken: string
 ): Promise<StoryData> => {
   const localDev = window.location.hostname === "localhost";
+  //const baseUrl = localDev 
+  //  ? `https://storyfairy.azurewebsites.net/api/GenerateStory?code=${process.env.REACT_APP_FUNCTION_KEY}` 
+  //  : '/api/GenerateStory';
+
   const baseUrl = localDev 
-    ? `https://storyfairy.azurewebsites.net/api/GenerateStory?code=${process.env.REACT_APP_FUNCTION_KEY}` 
+    ? `http://localhost:7071/api/GenerateStory` 
     : '/api/GenerateStory';
 
   const queryParams = new URLSearchParams({
@@ -19,12 +23,19 @@ export const generateStory = async (
     storyLength,
     imageStyle,
     storyModel,
-    imageModel
+    imageModel, 
+    storyStyle
   });
-  const apiURL = localDev ? `${baseUrl}&${queryParams.toString()}` : `${baseUrl}?${queryParams.toString()}`;
+
+  //console.log("access token: ", accessToken)
+  //console.log("query params: ", queryParams.toString())
+  const apiURL = localDev ? `${baseUrl}?${queryParams.toString()}` : `${baseUrl}?${queryParams.toString()}`;
   const response = await fetch(apiURL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' }
+    headers: { 
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${accessToken}`
+    }
   });
 
   if (!response.ok) {

@@ -1,16 +1,16 @@
 export interface StoryData {
-    StoryText: string;
-    title: string;
-    images: Array<{ imageUrl: string }>;
-  }
+  StoryText: string;
+  title: string;
+  images: Array<{ imageUrl: string }>;
+}
   
-  export interface LocationState {
-    storyData: StoryData;
-  }
+export interface LocationState {
+  storyData: StoryData;
+}
 
-  declare global {
-    interface Window {
-      webkitSpeechRecognition: any;
-      SpeechRecognition: any;
-    }
+declare global {
+  interface Window {
+    webkitSpeechRecognition: any;
+    SpeechRecognition: any;
   }
+}

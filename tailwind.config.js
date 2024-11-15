@@ -19,6 +19,8 @@ module.exports = {
           '100%': { transform: 'translateX(-100vw) translateY(100vh)' },
         },
       },
+      colors: { primary: '#1976d2', // You can customize this color 
+      },
     },
   },
   plugins: [],

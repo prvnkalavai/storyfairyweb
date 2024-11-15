@@ -1,7 +1,9 @@
 export const STORY_LENGTHS = {
     SHORT: 'short',
     MEDIUM: 'medium',
-    LONG: 'long'
+    LONG: 'long',
+    EPIC: 'epic',
+    SAGA: 'saga'
   } as const;
   
   export const IMAGE_STYLES = {
@@ -13,16 +15,11 @@ export const STORY_LENGTHS = {
     STUDIOGHIBLI: 'studioghibli',
     ANIME: 'anime',
     FANTASY: 'fantasy',
-    RETRO: 'retro',
     CARTOON: 'cartoon',
-    STOPMOTION: 'stopmotion',
     CLAYMATION: 'claymation',
     COMICBOOK: 'comicbook',
-    HORROR: 'horror',
     WATERCOLOR: 'watercolor',
     PAINTING: 'painting',
-    CYBERPUNK: 'cyberpunk',
-    FUTURISTIC: 'futuristic',
     ILLUSTRATION: 'illustration'
   } as const;
 
@@ -37,4 +34,13 @@ export const STORY_LENGTHS = {
     STABLE_DIFFUSION_3: 'stable_diffusion_3',
     FLUX_PRO : 'flux_pro'
     //IMAGEN_3: 'imagen_3'
+  } as const;
+
+  export const STORY_STYLES = {
+    ADVENTURE:'adventure',
+    FANTASY:'fantasy',
+    FAIRYTALE:'fairytale',
+    MYSTERY:'mystery',
+    SCIENCE_FICTION:'science_fiction',
+    BIOGRAPHY:'biography'
   } as const;

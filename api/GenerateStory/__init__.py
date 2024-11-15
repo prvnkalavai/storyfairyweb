@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 import asyncio
 import uuid
 import azure.functions as func
+from azure.functions import HttpRequest, HttpResponse
 from azure.storage.blob import BlobServiceClient, ContentSettings, generate_blob_sas, BlobSasPermissions, __version__
 from azure.identity import DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
@@ -16,11 +17,17 @@ import pytz
 import google.generativeai as genai
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
+from typing import Any, Dict
+from .auth.middleware import AuthMiddleware
+
+# Declare the global variable at module level
+auth_middleware = None
 
 load_dotenv()
 
 STORY_CONTAINER_NAME = "storyfairy-stories" 
 IMAGE_CONTAINER_NAME = "storyfairy-images" 
+auth_middleware = None
 
 @dataclass
 class Config:
@@ -31,12 +38,45 @@ class Config:
     account_key: str
     account_name: str
     grok_key: str
+    b2c_client_id: str
+    b2c_tenant: str
+    b2c_user_flow: str
 
 
-async def generate_story_openai(topic, api_key, story_length):
+
+async def initialize_auth(config):
+    """Initialize the auth middleware with configuration"""
+    global auth_middleware
+    try:
+        # Get B2C configuration from environment variables
+        #tenant = os.getenv('B2C_TENANT')
+        #client_id = os.getenv('B2C_CLIENT_ID')
+        #user_flow = os.getenv('B2C_USER_FLOW')
+        
+        tenant = config.b2c_tenant
+        client_id = config.b2c_client_id
+        user_flow = config.b2c_user_flow
+        
+
+        if not all([tenant, client_id, user_flow]):
+            logging.error("Missing required B2C configuration")
+            raise ValueError("Missing required B2C configuration")
+            
+        auth_middleware = AuthMiddleware(
+            tenant=tenant,
+            client_id=client_id,
+            user_flow=user_flow
+        )
+        logging.info("Auth middleware initialized successfully")
+        return auth_middleware
+    except Exception as e:
+        logging.error(f"Failed to initialize auth middleware: {str(e)}")
+        raise
+
+async def generate_story_openai(topic, api_key, story_length, story_style):
     try:
         client = openai.OpenAI(api_key=api_key)
-        prompt = create_story_prompt(topic, story_length)
+        prompt = create_story_prompt(topic, story_length, story_style)
         response = client.chat.completions.create(
             model="gpt-4o-mini",  
             messages=[
@@ -53,10 +93,10 @@ async def generate_story_openai(topic, api_key, story_length):
         logging.error(f"OpenAI error: {e}")
         return None, None, None
 
-async def generate_story_grok(topic, api_key, story_length):
+async def generate_story_grok(topic, api_key, story_length, story_style):
     try:
         client = openai.OpenAI(api_key=api_key, base_url="https://api.x.ai/v1")
-        prompt = create_story_prompt(topic, story_length)
+        prompt = create_story_prompt(topic, story_length, story_style)
         response = client.chat.completions.create(
             model="grok-beta",  
             messages=[
@@ -72,10 +112,10 @@ async def generate_story_grok(topic, api_key, story_length):
         logging.error(f"Grok error: {e}")
         return None, None, None 
 
-async def generate_story_gemini(topic, api_key, story_length):
+async def generate_story_gemini(topic, api_key, story_length, story_style):
     try:
         genai.configure(api_key=api_key)
-        prompt = create_story_prompt(topic, story_length)
+        prompt = create_story_prompt(topic, story_length, story_style)
         model = genai.GenerativeModel('gemini-1.5-flash') 
         response = model.generate_content(prompt)
         #logging.info(f"Raw response from Gemini: {response.text}")
@@ -86,13 +126,13 @@ async def generate_story_gemini(topic, api_key, story_length):
         logging.error(f"Gemini error: {e}")
         return None, None, None
  
-def create_story_prompt(topic, story_length="short"):
+def create_story_prompt(topic, story_length="short", story_style="adventure"):
     """Creates the story prompt based on whether a topic is provided or not."""
-    sentence_count = { "short": 5, "medium": 7, "long": 9}
+    sentence_count = { "short": 5, "medium": 7, "long": 9, "epic": 12, "saga": 15}
     num_sentences = sentence_count.get(story_length, 5)
     if topic:
         prompt = f"""
-        Write a {story_length}, imaginative and creative {num_sentences} sentence children's story suitable for young readers about {topic}. The story should have a happy ending and be filled with wonder and excitement..
+        Write a {story_length}, imaginative and creative {num_sentences} sentence children's story suitable for young readers about {topic}. The story should have a happy ending and its style should be {story_style}...
 
             Please provide the response as a JSON object without any markdown elements or formatting. Format the story as a JSON object with each sentence as a separate entry in an array of sentences under the 'sentences' property. Additionally, generate a unique and creative title for the story and include it in a separate property called 'Title' in the JSON response object. DO NOT include any additional formatting or markdown.       
             Crucially, EVERY sentence must include these details:
@@ -111,7 +151,7 @@ def create_story_prompt(topic, story_length="short"):
             """
     else:
         prompt = """
-        Write a random {story_length}, imaginative and creative {num_sentences} sentence children's story suitable for young readers. The story should have a happy ending and be filled with wonder and excitement..  
+        Write a random {story_length}, imaginative and creative {num_sentences} sentence children's story suitable for young readers. The story should have a happy ending and its style should be {story_style}...  
 
             Please provide the response as a JSON object without any markdown elements or formatting. Format the story as a JSON object with each sentence as a separate entry in an array of sentences under the 'sentences' property. Additionally, generate a unique and creative title for the story and include it in a separate property called 'Title' in the JSON response object. DO NOT include any additional formatting or markdown.       
             Crucially, EVERY sentence must include these details:
@@ -159,7 +199,7 @@ def parse_story_json(story_response):
 
 async def simplify_story_with_gemini(detailed_story, api_key, story_length = "short"):
     try:
-        sentence_count = { "short": 5, "medium": 7, "long": 9}
+        sentence_count = { "short": 5, "medium": 7, "long": 9, "epic": 12, "saga": 15}
         num_sentences = sentence_count.get(story_length, 5)
         genai.configure(api_key=api_key)
         model = genai.GenerativeModel('gemini-1.5-flash') 
@@ -179,7 +219,7 @@ async def simplify_story_with_gemini(detailed_story, api_key, story_length = "sh
 
 async def simplify_story(detailed_story, api_key, story_length = "short"):
     try:
-        sentence_count = { "short": 5, "medium": 7, "long": 9}
+        sentence_count = { "short": 5, "medium": 7, "long": 9, "epic": 12, "saga": 15}
         num_sentences = sentence_count.get(story_length, 5)
         client = openai.OpenAI(api_key=api_key) # Or use Gemini. Configure appropriately
         response = client.chat.completions.create(
@@ -384,7 +424,10 @@ async def get_secrets() -> Config:
                 asyncio.to_thread(client.get_secret, "storage-connection-string"),
                 asyncio.to_thread(client.get_secret, "account-key"),
                 asyncio.to_thread(client.get_secret, "account-name"),
-                asyncio.to_thread(client.get_secret, "grok-api-key")
+                asyncio.to_thread(client.get_secret, "grok-api-key"),
+                asyncio.to_thread(client.get_secret, "b2c-client-id"),
+                asyncio.to_thread(client.get_secret, "b2c-tenant"),
+                asyncio.to_thread(client.get_secret, "b2c-user-flow")
             )
             logging.info("Secrets successfully fetched from Key Vault") # Add logging for successful fetch.
             return Config(*(s.value for s in secrets))
@@ -398,7 +441,10 @@ async def get_secrets() -> Config:
             storage_conn=os.environ["STORAGE_CONNECTION_STRING"],
             account_key=os.environ["ACCOUNT_KEY"],
             account_name=os.environ["ACCOUNT_NAME"],
-            grok_key=os.environ["GROK_API_KEY"]
+            grok_key=os.environ["GROK_API_KEY"],
+            b2c_client_id=os.environ["B2C_CLIENT_ID"],
+            b2c_tenant=os.environ["B2C_TENANT"],
+            b2c_user_flow=os.environ["B2C_USER_FLOW"]
         )   
     except Exception as e:
         logging.exception(f"Error getting secrets: {e}") # Log the exception
@@ -458,10 +504,22 @@ async def generate_images_parallel(sentences, story_title, image_style, connecti
 async def main(req: func.HttpRequest) -> func.HttpResponse:
     try:
         # Get secrets (existing code)
-        #openai_api_key, GEMINI_API_KEY, REPLICATE_API_TOKEN, STORAGE_CONNECTION_STRING, ACCOUNT_KEY, ACCOUNT_NAME, grok_api_key = get_secrets()
         config = await get_secrets()
+
+        # Initialize auth middleware if not already done
+        global auth_middleware
+        if auth_middleware is None:
+            auth_middleware = await initialize_auth(config)
+            if auth_middleware is None:
+                return HttpResponse(
+                    json.dumps({"error": "Failed to initialize authentication middleware"}),
+                    mimetype="application/json",
+                    status_code=500
+                )
+            
         openai.api_key = config.openai_key
         os.environ["REPLICATE_API_TOKEN"] = config.replicate_token
+
         
         # Get topic from either query params or request body
         topic = req.params.get('topic') 
@@ -518,15 +576,23 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
                 image_model = req_body.get('imageModel', 'flux_schnell')
             except ValueError:
                 image_model = 'flux-schnell'
+        
+        story_style = req.params.get('storyStyle', 'adventure')
+        if not story_style:
+            try:
+                req_body = req.get_json()
+                story_style = req_body.get('storyStyle', 'adventure')
+            except ValueError:
+                story_style = 'adventure'
 
         # Generate story using the specified model
         logging.info(f"Generating story with model: {story_model}")
         if story_model == 'gemini':
-            title, story, sentences = await generate_story_gemini(topic, config.gemini_key, story_length)
+            title, story, sentences = await generate_story_gemini(topic, config.gemini_key, story_length, story_style)
         elif story_model == 'openai':
-            title, story, sentences = await generate_story_openai(topic, config.openai_key, story_length)
+            title, story, sentences = await generate_story_openai(topic, config.openai_key, story_length, story_style)
         elif story_model == 'grok':
-            title, story, sentences = await generate_story_grok(topic, config.grok_key, story_length)
+            title, story, sentences = await generate_story_grok(topic, config.grok_key, story_length, story_style)
         else:
             return func.HttpResponse(
                 json.dumps({"error": f"Invalid story model: {story_model}"}),
