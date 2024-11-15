@@ -8,10 +8,10 @@ const userFlow = process.env.REACT_APP_B2C_USER_FLOW;
 
 // Validate required environment variables
 const requiredEnvVars = {
-    'B2C_CLIENT_ID': clientId,
-    'B2C_TENANT': tenantName,
-    'B2C_TENANT_ID': tenantId,
-    'B2C_USER_FLOW': userFlow
+    'REACT_APP_B2C_CLIENT_ID': clientId,
+    'REACT_APP_B2C_TENANT': tenantName,
+    'REACT_APP_B2C_TENANT_ID': tenantId,
+    'REACT_APP_B2C_USER_FLOW': userFlow
 };
 
 Object.entries(requiredEnvVars).forEach(([name, value]) => {
