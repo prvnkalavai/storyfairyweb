@@ -43,6 +43,11 @@ jobs:
           api_location: "./api" # Api source code path - optional
           output_location: "build" # Built app content directory - optional
           ###### End of Repository/Build Configurations ######
+        env:
+          REACT_APP_B2C_CLIENT_ID: ${{ secrets.REACT_APP_B2C_CLIENT_ID }}
+          REACT_APP_B2C_TENANT: ${{ secrets.REACT_APP_B2C_TENANT }}
+          REACT_APP_B2C_TENANT_ID: ${{ secrets.REACT_APP_B2C_TENANT_ID }}
+          REACT_APP_B2C_USER_FLOW: ${{ secrets.REACT_APP_B2C_USER_FLOW }}
 
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
