@@ -9,6 +9,8 @@ interface StoryControlsProps {
   isPlaying: boolean;
   isDownloading: boolean;
   isSharing: boolean;
+  disabled?: boolean;
+  loadingAudio?: boolean;
 }
 
 export const StoryControls: React.FC<StoryControlsProps> = ({
@@ -18,7 +20,9 @@ export const StoryControls: React.FC<StoryControlsProps> = ({
   onShare,
   isPlaying,
   isDownloading,
-  isSharing
+  isSharing,
+  disabled,
+  loadingAudio = false,
 }) => (
     <div className="grid grid-cols-2 gap-2 lg:grid-cols-4 mb-4">
     <button
@@ -30,6 +34,7 @@ export const StoryControls: React.FC<StoryControlsProps> = ({
     
     <button
       onClick={onNarration}
+      disabled={disabled || loadingAudio}
       className="flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-blue-400"
     >
       {isPlaying ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}

@@ -6,118 +6,100 @@ import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
 import { StoryControls } from './StoryControls';
 import { usePdfGeneration } from '../hooks/usePdfGeneration';
+import { useAzureSpeech } from '../hooks/useAzureSpeech';
 import { canShare } from '../utils/sharing';
 import type { LocationState } from '../types';
+
+const splitIntoSentences = (text: string): string[] => {
+  const exceptions = /(?:[A-Z][a-z]*\.|Mr\.|Mrs\.|Ms\.|Dr\.|Prof\.)/g;
+  let processedText = text;
+  const foundExceptions: string[] = [];
+  let match;
+  
+  while ((match = exceptions.exec(text)) !== null) {
+    const placeholder = `__EXC${foundExceptions.length}__`;
+    foundExceptions.push(match[0]);
+    processedText = processedText.replace(match[0], placeholder);
+  }
+  
+  const sentences = processedText.split(/(?<=[.!?])\s+/);
+  
+  return sentences.map(sentence => {
+    let restoredSentence = sentence;
+    foundExceptions.forEach((exc, i) => {
+      restoredSentence = restoredSentence.replace(`__EXC${i}__`, exc);
+    });
+    return restoredSentence;
+  });
+};
 
 export const StoryDisplay: React.FC = () => {
   const location = useLocation();
   const { storyData } = location.state as LocationState;
   const navigate = useNavigate();
-  const sliderRef = useRef<Slider | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [isSharing, setIsSharing] = useState(false);
-  const [isDownloading, setIsDownloading] = useState(false);
+  const sliderRef = useRef<Slider>(null);
   const [currentSentenceIndex, setCurrentSentenceIndex] = useState(0);
-  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
-  const sentences = storyData.StoryText.split(/(?<=[.!?])\s+/);
-  const timeoutRef = useRef<NodeJS.Timeout>();
-  
-  const { pdfBlob, generateStoryBook } = usePdfGeneration(storyData);
+  const sentences = splitIntoSentences(storyData.StoryText);
+  const normalizedImageCount = Math.min(storyData.images.length, sentences.length);
+  const images = storyData.images.slice(0, normalizedImageCount);
+  const mountedRef = useRef(true);
 
-  // Pre-generate PDF when component mounts
-  useEffect(() => {
-    generateStoryBook();
-  }, [generateStoryBook]);
-
-  // Cleanup function for speech synthesis and timeouts
-  useEffect(() => {
-    return () => {
-      if (utteranceRef.current) {
-        window.speechSynthesis.cancel();
-      }
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-    };
-  }, []);
-
-  // Function to speak a single sentence with image sync
-  const speakSentence = useCallback((index: number) => {
-    if (!utteranceRef.current || index >= sentences.length) {
-      setIsPlaying(false);
-      setCurrentSentenceIndex(0);
+  const handleSentenceStart = useCallback((index: number) => {
+    if (!mountedRef.current) {
+      console.log("Component not mounted, ignoring sentence update");
       return;
     }
-
+    
     setCurrentSentenceIndex(index);
-
-    // Update slider position
     if (sliderRef.current) {
-      const imageIndex = Math.floor(index * (storyData.images.length / sentences.length));
+      const imageIndex = Math.min(index, images.length - 1);
+      console.log("Updating slider to image ", imageIndex)
       sliderRef.current.slickGoTo(imageIndex);
     }
+  }, [images.length]);
 
-    utteranceRef.current.text = sentences[index];
-    
-    // Set up the onend handler for this sentence
-    utteranceRef.current.onend = () => {
-      timeoutRef.current = setTimeout(() => {
-        speakSentence(index + 1);
-      }, 100); // Reduced to 500ms delay between sentences
-    };
+  const {
+    speak,
+    stop,
+    cleanup: cleanupSpeech,
+    error: speechError,
+    isPlaying,
+    loadingAudio
+  } = useAzureSpeech({
+    region: process.env.REACT_APP_AZURE_REGION!,
+    subscriptionKey: process.env.REACT_APP_AZURE_SPEECH_KEY!,
+    onSentenceStart: handleSentenceStart,
+    isMounted: mountedRef
+  });
 
-    window.speechSynthesis.speak(utteranceRef.current);
-  }, [sentences, storyData.images.length]);
+  const { pdfBlob, generateStoryBook } = usePdfGeneration(storyData);
 
-  // Initialize speech synthesis
-useEffect(() => {
-  if ('speechSynthesis' in window) {
-    utteranceRef.current = new SpeechSynthesisUtterance();
-    
-    // Function to set voice
-    const setVoice = () => {
-      const voices = window.speechSynthesis.getVoices();
-      if (utteranceRef.current && voices.length > 0) {
-        // Try to find English voices in this order of preference
-        const preferredVoices = [
-          voices.find(voice => voice.name === 'Samantha'), // Safari's US English female voice
-          voices.find(voice => voice.name === 'Google US English Female'),
-          voices.find(voice => voice.voiceURI.includes('en-US')),
-          voices.find(voice => voice.lang === 'en-US'),
-          voices[0] // Fallback to first available voice
-        ];
-        
-        utteranceRef.current.voice = preferredVoices.find(voice => voice !== undefined) || voices[0];
-        utteranceRef.current.lang = 'en-US'; // Explicitly set language
-        utteranceRef.current.rate = 1.0;
-      }
-    };
-
-    // Set voice immediately if voices are already loaded
-    setVoice();
-
-    // Safari and Chrome load voices asynchronously
-    window.speechSynthesis.onvoiceschanged = setVoice;
+  useEffect(() => {
+    mountedRef.current = true;
     
     return () => {
-      window.speechSynthesis.onvoiceschanged = null;
+      mountedRef.current = false;
+      cleanupSpeech();
     };
-  }
-}, []);
+  }, [cleanupSpeech]);
 
-  const handleNarration = useCallback(() => {
-    if (isPlaying) {
-      window.speechSynthesis.cancel();
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
+  const handleNarration = useCallback(async () => {
+    try {
+      if (isPlaying) {
+        await stop();
+        setCurrentSentenceIndex(0);
+      } else {
+        await speak(sentences);
       }
-      setIsPlaying(false);
-      setCurrentSentenceIndex(0);
-    } else {
-      setIsPlaying(true);
-      speakSentence(currentSentenceIndex);
+    } catch (error) {
+      console.error('Narration failed:', error);
     }
-  }, [isPlaying, speakSentence, currentSentenceIndex]);
+  }, [isPlaying, sentences, speak, stop]);
+
+  const handleNewStory = useCallback(async () => {
+    await stop();
+    navigate('/');
+  }, [stop, navigate]);
 
   const downloadFile = useCallback((blob: Blob) => {
     const downloadLink = document.createElement('a');
@@ -126,6 +108,9 @@ useEffect(() => {
     downloadLink.click();
     URL.revokeObjectURL(downloadLink.href);
   }, [storyData.title]);
+
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
 
   const handleDownload = useCallback(async () => {
     setIsDownloading(true);
@@ -182,25 +167,31 @@ useEffect(() => {
     slidesToScroll: 1,
     adaptiveHeight: true,
     arrows: true,
-    swipe: !isPlaying // Disable swipe when narration is playing
+    swipe: !isPlaying,
   };
 
   return (
     <div className="w-full min-h-screen pt-40 px-4 md:px-8">
       <div className="max-w-4xl mx-auto">
+        {speechError && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4">
+            {speechError}
+          </div>
+        )}
         <StoryControls
-          onNewStory={() => navigate('/')}
+          onNewStory={handleNewStory}
           onNarration={handleNarration}
           onDownload={handleDownload}
           onShare={canShare() ? handleShare : undefined}
           isPlaying={isPlaying}
           isDownloading={isDownloading}
           isSharing={isSharing}
+          disabled={loadingAudio}
         />
 
         <div className="mt-4">
           <Slider ref={sliderRef} {...sliderSettings}>
-            {storyData.images.map((image, index) => (
+            {images.map((image, index) => (
               <div key={index} className="px-2">
                 <img
                   src={image.imageUrl}
