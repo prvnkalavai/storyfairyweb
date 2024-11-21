@@ -83,7 +83,7 @@ async def generate_story_openai(topic, api_key, story_length, story_style):
                 {"role": "system", "content": "You are a creative storyteller for children."},
                 {"role": "user", "content": prompt}
             ],
-            max_tokens=500
+            max_tokens=1000
         )
         #logging.info(f"Raw response from OpenAI: {response.choices[0].message.content}")
         title, story, sentences = parse_story_json(response.choices[0].message.content.strip())
@@ -229,7 +229,7 @@ async def simplify_story(detailed_story, api_key, story_length = "short"):
                 {"role": "user", "content": f"Please simplify the above story into {num_sentences} sentences, removing repetitive descriptions while maintaining the same narrative. Make the sentences as long and descriptive as possible while keeping the essence and key elements of the story intact.:\n\n{detailed_story}"}
 
             ],
-            max_tokens=300 # Adjust if needed
+            max_tokens=1000 # Adjust if needed
         )
         simplified_story = response.choices[0].message.content
         #logging.info(f"Simplified story:\n{simplified_story}")

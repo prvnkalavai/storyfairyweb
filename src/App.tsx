@@ -5,6 +5,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { StoryGenerator } from './components/StoryGenerator';
 import { StoryDisplay } from './components/StoryDisplay';
 import { Header } from './components/Header';
+import { AuthenticationModal } from './components/AuthenticationModal';
 import AnimatedBackground from './components/AnimatedBackground';
 import { msalInstance } from './authConfig';
 import { InteractionType } from '@azure/msal-browser';
@@ -26,6 +27,7 @@ const App: React.FC = () => {
                     <AnimatedBackground />
                     <div className="relative z-10">
                         <Header />
+                        <AuthenticationModal />
                         <Routes>
                             <Route path="/" element={<StoryGenerator />} />
                             <Route

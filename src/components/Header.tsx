@@ -65,6 +65,9 @@ export const Header: React.FC = () => {
               color="primary"
               onClick={handleLogin}
               disabled={inProgress !== InteractionStatus.None}
+              className={`
+                ${inProgress === InteractionStatus.None ? 'animate-pulse' : ''}
+              `}
             >
               Sign In
             </Button>

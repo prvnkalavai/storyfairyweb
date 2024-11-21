@@ -10,6 +10,9 @@ import { IMAGE_STYLES, STORY_LENGTHS, STORY_MODELS, IMAGE_MODELS, STORY_STYLES, 
 import { STORY_CREDIT_COSTS, CREDIT_PACKAGES } from '../constants/credits';
 import { tokenRequest } from '../authConfig';
 import { ConfirmationDialog, PurchaseDialog } from './CreditDialogs';
+import InfoIcon from '@mui/icons-material/Info';
+import IconButton from '@mui/material/IconButton';
+import HelpDialog from './HelpDialog';
 
 export const StoryGenerator: React.FC = () => {
   const [topic, setTopic] = useState('');
@@ -34,6 +37,11 @@ export const StoryGenerator: React.FC = () => {
   const getRequiredCredits = (length: keyof typeof STORY_CREDIT_COSTS) => {
     return STORY_CREDIT_COSTS[length];
   };
+  const [openHelpDialog, setOpenHelpDialog] = useState(false);
+  const [dialogContent, setDialogContent] = useState<{ title: string; content: React.ReactNode }>({ 
+  title: '', 
+  content: '' 
+  });
 
   const handleGenerate = async (isRandom: boolean = false) => {
     if (!isAuthenticated) {
@@ -123,6 +131,46 @@ export const StoryGenerator: React.FC = () => {
     }
   };
 
+  const handleHelpClick = (modelType: 'topic' |'story' | 'image') => {
+    let title = '';
+    let content: React.ReactNode = '';
+  
+    if (modelType === 'story') {
+      title = 'Story Models';
+      content = (
+        <div className="space-y-4">
+          <p><strong>Gemini 1.5 Flash:</strong> Optimized for quick, creative storytelling with consistent narrative flow.</p>
+          <p><strong>GPT-4o Turbo:</strong> Advanced model for complex, detailed stories with rich character development.</p>
+          <p><strong>Grok:</strong> Specialized in interactive and engaging narrative experiences.</p>
+          <p>Choose based on your story's complexity and desired detail level.</p>
+        </div>
+      );
+    } else if (modelType === 'image') {
+      title = 'Image Models';
+      content = (
+        <div className="space-y-4">
+          <p><strong>Flux Schnell:</strong> Fast image generation with good quality and consistency.</p>
+          <p><strong>Stable Diffusion:</strong> High-quality, detailed images with excellent style consistency.</p>
+          <p><strong>Flux Pro:</strong> Creative and artistic images with strong adherence to prompts.</p>
+          <p>Choose based on your desired image quality and style preferences.</p>
+        </div>
+      );
+    } else if (modelType === 'topic') {
+      title = 'Topic';
+      content = (
+        <div className="space-y-4">
+          <p><strong>Topic</strong> Provide or narrate a topic of your choice for the story (Optional).</p>
+          <p><strong>Generate Story</strong> Click 'Generate Story' to breath life into your topic in the form of a bedtime story.</p>
+          <p><strong>Random Story</strong> Click 'Random Story' to let AI take the wheel and generate a random bedtime story.</p>
+          <p>Choose based on your desired preference for the story.</p>
+        </div>
+      );
+    }
+  
+    setDialogContent({ title, content });
+    setOpenHelpDialog(true);
+  };
+
   const isButtonDisabled = !isAuthenticated || isLoading || inProgress !== InteractionStatus.None;
   
   return (
@@ -153,6 +201,19 @@ export const StoryGenerator: React.FC = () => {
           >
             {isListening ? <MicOff className="h-6 w-6" /> : <Mic className="h-6 w-6" />}
           </Button>
+          <IconButton 
+          onClick={() => handleHelpClick('topic')} 
+          size="small"
+          sx={{ 
+            position: 'absolute', 
+            right: -6, 
+            top: '10%', 
+            transform: 'translateY(-50%)',
+            color: 'primary.main'
+          }}
+        >
+        <InfoIcon fontSize="small" />
+        </IconButton>
       </div>
 
       <FormControl fullWidth margin="normal">
@@ -207,6 +268,19 @@ export const StoryGenerator: React.FC = () => {
             </MenuItem>
           ))}
         </Select>
+        <IconButton 
+          onClick={() => handleHelpClick('story')} 
+          size="small"
+          sx={{ 
+            position: 'absolute', 
+            right: -30, 
+            top: '50%', 
+            transform: 'translateY(-50%)',
+            color: 'primary.main'
+          }}
+        >
+        <InfoIcon fontSize="small" />
+        </IconButton>
       </FormControl>
       <FormControl fullWidth margin="normal">
         <InputLabel id="image-model-label">Image Model</InputLabel>
@@ -227,6 +301,19 @@ export const StoryGenerator: React.FC = () => {
             </MenuItem>
           ))}
         </Select>
+        <IconButton 
+          onClick={() => handleHelpClick('image')} 
+          size="small"
+          sx={{ 
+            position: 'absolute', 
+            right: -30, 
+            top: '50%', 
+            transform: 'translateY(-50%)',
+            color: 'primary.main'
+          }}
+        >
+        <InfoIcon fontSize="small" />
+        </IconButton>
       </FormControl>
       <FormControl fullWidth margin="normal">
         <InputLabel id="story-style-label">Story Style</InputLabel>
@@ -311,6 +398,12 @@ export const StoryGenerator: React.FC = () => {
       {error || speechError}
     </Alert>
   </Snackbar>
+  <HelpDialog
+  open={openHelpDialog}
+  onClose={() => setOpenHelpDialog(false)}
+  title={dialogContent.title}
+  content={dialogContent.content}
+/>
 </div>
   );
 };
