@@ -53,7 +53,7 @@ export const StoryDisplay: React.FC = () => {
     setCurrentSentenceIndex(index);
     if (sliderRef.current) {
       const imageIndex = Math.min(index, images.length - 1);
-      console.log("Updating slider to image ", imageIndex)
+      //console.log("Updating slider to image ", imageIndex)
       sliderRef.current.slickGoTo(imageIndex);
     }
   }, [images.length]);
@@ -73,7 +73,7 @@ export const StoryDisplay: React.FC = () => {
   });
 
   const { pdfBlob, generateStoryBook } = usePdfGeneration(storyData);
-
+  
   useEffect(() => {
     mountedRef.current = true;
     
@@ -86,18 +86,18 @@ export const StoryDisplay: React.FC = () => {
   const handleNarration = useCallback(async () => {
     try {
       if (isPlaying) {
-        await stop();
+        stop();
         setCurrentSentenceIndex(0);
       } else {
-        await speak(sentences);
+        await speak(sentences, storyData.voiceName);
       }
     } catch (error) {
       console.error('Narration failed:', error);
     }
-  }, [isPlaying, sentences, speak, stop]);
+  }, [isPlaying, sentences, speak, stop, storyData.voiceName]);
 
   const handleNewStory = useCallback(async () => {
-    await stop();
+    stop();
     navigate('/');
   }, [stop, navigate]);
 

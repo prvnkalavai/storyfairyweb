@@ -7,6 +7,7 @@ export const generateStory = async (
   storyModel: string,
   imageModel: string,
   storyStyle: string,
+  voiceName: string,
   accessToken: string
 ): Promise<StoryData> => {
   const localDev = window.location.hostname === "localhost";
@@ -24,7 +25,8 @@ export const generateStory = async (
     imageStyle,
     storyModel,
     imageModel, 
-    storyStyle
+    storyStyle, 
+    voiceName
   });
 
   //console.log("access token: ", accessToken)

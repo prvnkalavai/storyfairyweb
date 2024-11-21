@@ -2,6 +2,7 @@ export interface StoryData {
   StoryText: string;
   title: string;
   images: Array<{ imageUrl: string }>;
+  voiceName: string;
 }
   
 export interface LocationState {

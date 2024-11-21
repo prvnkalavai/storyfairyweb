@@ -30,43 +30,7 @@ export const useAzureSpeech = ({
   const [loadingAudio, setLoadingAudio] = useState<boolean>(false);
   const lastTimeUpdateRef = useRef<number>(0);
   const synthesisStartTimeRef = useRef<number>(0);
-
-  const stop = useCallback(async () => {
-    return new Promise<void>((resolve) => {
-        if (audioPlayer.current) {
-            audioPlayer.current.once('stop', () => {
-                resolve();
-            });
-            audioPlayer.current.stop();
-        } else {
-            resolve();
-        }
-        setIsPlaying(false);
-    });
-}, []);
-
-// Modify the cleanup function to be more thorough
-const cleanup = useCallback(() => {
-    return new Promise<void>((resolve) => {
-        if (audioPlayer.current) {
-            audioPlayer.current.once('unload', () => {
-                if (activeUrlRef.current) {
-                    URL.revokeObjectURL(activeUrlRef.current);
-                    activeUrlRef.current = null;
-                }
-                audioBlobRef.current = null;
-                currentSentenceRef.current = -1;
-                marksRef.current = [];
-                setIsPlaying(false);
-                resolve();
-            });
-            audioPlayer.current.unload();
-            audioPlayer.current = null;
-        } else {
-            resolve();
-        }
-    });
-}, []);
+  const timeUpdateIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const createHowl = useCallback((audioBlob: Blob): Promise<void> => {
     return new Promise((resolve, reject) => {
@@ -78,7 +42,7 @@ const cleanup = useCallback(() => {
           URL.revokeObjectURL(activeUrlRef.current);
         }
         activeUrlRef.current = blobUrl;
-
+  
         const howl = new Howl({
           src: [blobUrl],
           format: ['mp3'],
@@ -92,71 +56,127 @@ const cleanup = useCallback(() => {
             reject(new Error('Failed to load audio'));
           },
           onplay: () => {
-            console.log('Audio started playing');
-            setIsPlaying(true);
-            synthesisStartTimeRef.current = Date.now();
+            if (isMounted.current) {
+              console.log('Audio started playing');
+              setIsPlaying(true);
+              synthesisStartTimeRef.current = Date.now();
+            }
           },
           onend: () => {
-            console.log('Audio ended');
-            setIsPlaying(false);
-            currentSentenceRef.current = -1;
+            if (isMounted.current) {
+              console.log('Audio ended');
+              setIsPlaying(false);
+              currentSentenceRef.current = -1;
+              
+              if (timeUpdateIntervalRef.current) {
+                clearInterval(timeUpdateIntervalRef.current);
+                timeUpdateIntervalRef.current = null;
+              }
+            }
           },
           onstop: () => {
-            console.log('Audio stopped');
-            setIsPlaying(false);
+            if (isMounted.current) {
+              console.log('Audio stopped');
+              setIsPlaying(false);
+              
+              if (timeUpdateIntervalRef.current) {
+                clearInterval(timeUpdateIntervalRef.current);
+                timeUpdateIntervalRef.current = null;
+              }
+            }
           }
         });
-
+  
         audioPlayer.current = howl;
-
-        const timeUpdateInterval = setInterval(() => {
-          if (howl.playing()) {
-              if (!audioPlayer.current) return;
-              
-              const currentTime = audioPlayer.current.seek() as number;
-              if (Math.abs(currentTime - lastTimeUpdateRef.current) < 0.05) return;
-              lastTimeUpdateRef.current = currentTime;
-              
-              const currentMarks = marksRef.current;
-              
-              for (let i = 0; i < currentMarks.length; i++) {
-                  const mark = currentMarks[i];
-                  if (mark.name.startsWith('sentence_')) {
-                      const nextMark = currentMarks[i + 1];
-                      const markTime = mark.time;
-                      const nextMarkTime = nextMark ? nextMark.time : Infinity;
-                      
-                      console.log(`Current Time: ${currentTime}, Mark Time: ${markTime}, Next Mark Time: ${nextMarkTime}`);
-                      
-                      if (currentTime >= markTime && (nextMark ? currentTime < nextMarkTime : true)) {
-                          const index = parseInt(mark.name.split('_')[1]);
-                          if (currentSentenceRef.current !== index) {
-                              currentSentenceRef.current = index;
-                              console.log(`Triggering sentence start for index: ${index}`);
-                              onSentenceStart?.(index);
-                          }
-                          break;
-                      }
+  
+        if (timeUpdateIntervalRef.current) {
+          clearInterval(timeUpdateIntervalRef.current);
+        }
+  
+        timeUpdateIntervalRef.current = setInterval(() => {
+          if (howl && howl.playing() && isMounted.current)  {
+            const currentTime = howl.seek() as number;
+            if (Math.abs(currentTime - lastTimeUpdateRef.current) < 0.05) return;
+            lastTimeUpdateRef.current = currentTime;
+            
+            const currentMarks = marksRef.current;
+            
+            for (let i = 0; i < currentMarks.length; i++) {
+              const mark = currentMarks[i];
+              if (mark.name.startsWith('sentence_')) {
+                const nextMark = currentMarks[i + 1];
+                const markTime = mark.time;
+                const nextMarkTime = nextMark ? nextMark.time : Infinity;
+                
+                if (currentTime >= markTime && (nextMark ? currentTime < nextMarkTime : true)) {
+                  const index = parseInt(mark.name.split('_')[1]);
+                  if (currentSentenceRef.current !== index) {
+                    currentSentenceRef.current = index;
+                    onSentenceStart?.(index);
                   }
+                  break;
+                }
               }
+            }
           }
-      }, 50);
-
-        howl.on('end', () => clearInterval(timeUpdateInterval));
-
+        }, 50);
+  
       } catch (err) {
         console.error('Error creating Howl instance:', err);
         reject(err);
       }
     });
-  }, [onSentenceStart]);
+  }, [onSentenceStart, isMounted]);
+    
+  const cleanup = useCallback(() => {
+    if (timeUpdateIntervalRef.current) {
+      clearInterval(timeUpdateIntervalRef.current);
+      timeUpdateIntervalRef.current = null;
+    }
 
-  const speak = useCallback(async (sentences: string[]): Promise<void> => {
+    if (audioPlayer.current) {
+      // Stop playback first
+      audioPlayer.current.stop();
+      // Unload and destroy the Howl instance
+      audioPlayer.current.unload();
+      audioPlayer.current = null;
+    }
+
+    if (activeUrlRef.current) {
+      URL.revokeObjectURL(activeUrlRef.current);
+      activeUrlRef.current = null;
+    }
+
+    audioBlobRef.current = null;
+    currentSentenceRef.current = -1;
+    marksRef.current = [];
+    
+    if (isMounted.current) {
+      setIsPlaying(false);
+    }
+  }, [isMounted]);
+  
+  const stop = useCallback(() => {
+    if (timeUpdateIntervalRef.current) {
+      clearInterval(timeUpdateIntervalRef.current);
+      timeUpdateIntervalRef.current = null;
+    }
+
+    if (audioPlayer.current) {
+      audioPlayer.current.stop();
+    }
+
+    if (isMounted.current) {
+      setIsPlaying(false);
+    }
+  }, [isMounted]);
+
+  const speak = useCallback(async (sentences: string[], voiceName: string = "en-US-AvaNeural"): Promise<void> => {
     let synthesizer: sdk.SpeechSynthesizer | null = null;
     
     try {
-        await stop();
-        await cleanup();
+        stop();
+        cleanup();
         
         setLoadingAudio(true);
         marksRef.current = [];
@@ -165,7 +185,7 @@ const cleanup = useCallback(() => {
         const speechConfig = sdk.SpeechConfig.fromSubscription(subscriptionKey, region);
         // Configure for audio data output only
         speechConfig.speechSynthesisOutputFormat = sdk.SpeechSynthesisOutputFormat.Audio16Khz32KBitRateMonoMp3;
-        speechConfig.speechSynthesisVoiceName = "en-US-AvaNeural";
+        speechConfig.speechSynthesisVoiceName = voiceName;
 
         // Create a pull audio output stream to prevent direct audio output
         const pullStream = sdk.AudioOutputStream.createPullStream();
@@ -175,18 +195,22 @@ const cleanup = useCallback(() => {
         synthesizer = new sdk.SpeechSynthesizer(speechConfig, audioConfig);
 
         const ssml = `
-        <speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="en-US">
-            <voice name="en-US-AvaNeural">
+        <speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" 
+          xmlns:mstts="http://www.w3.org/2001/mstts" 
+          xml:lang="en-US">
+            <voice name="${voiceName}">
+                <mstts:express-as style="poetry-reading">
                 <prosody rate="1" pitch="0%">
                     ${sentences.map((sentence, index) => `
                         <mark name="sentence_${index}"/>
                         ${sentence.trim()}
-                        ${index < sentences.length - 1 ? '<break time="300ms"/>' : ''}
+                        ${index < sentences.length - 1 ? '<break time="2000ms"/>' : ''}
                     `).join('')}
                 </prosody>
+                </mstts:express-as>
             </voice>
         </speak>`.trim();
-
+        //console.log("ssml: ", ssml)
         // Reset marks array
         marksRef.current = [];
 
@@ -197,7 +221,7 @@ const cleanup = useCallback(() => {
                     time: timeInSeconds,
                     name: event.text
                 });
-                console.log(`Mark reached: ${event.text} at time ${timeInSeconds}s`);
+                //console.log(`Mark reached: ${event.text} at time ${timeInSeconds}s`);
             }
         };
 
@@ -254,7 +278,7 @@ const cleanup = useCallback(() => {
     } catch (err) {
         console.error('Speech synthesis error:', err);
         setError(err instanceof Error ? err.message : 'Speech synthesis failed');
-        await cleanup();
+        cleanup();
     } finally {
         if (synthesizer) {
             synthesizer.close();

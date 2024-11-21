@@ -6,7 +6,7 @@ import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { generateStory } from '../services/api';
 import { InteractionStatus, InteractionRequiredAuthError } from '@azure/msal-browser';
 import { useMsal, useIsAuthenticated } from '@azure/msal-react';
-import { IMAGE_STYLES, STORY_LENGTHS, STORY_MODELS, IMAGE_MODELS, STORY_STYLES } from '../constants/config';
+import { IMAGE_STYLES, STORY_LENGTHS, STORY_MODELS, IMAGE_MODELS, STORY_STYLES, VOICES } from '../constants/config';
 import { STORY_CREDIT_COSTS, CREDIT_PACKAGES } from '../constants/credits';
 import { tokenRequest } from '../authConfig';
 import { ConfirmationDialog, PurchaseDialog } from './CreditDialogs';
@@ -18,6 +18,7 @@ export const StoryGenerator: React.FC = () => {
   const [storyModel, setStoryModel] = useState(STORY_MODELS.GEMINI_1_5_FLASH);
   const [imageModel, setImageModel] = useState(IMAGE_MODELS.FLUX_SCHNELL);
   const [storyStyle, setStoryStyle] = useState(STORY_STYLES.ADVENTURE);
+  const [voiceName, setVoiceName] = useState<typeof VOICES[keyof typeof VOICES]>(VOICES.Ava_US);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
@@ -78,7 +79,7 @@ export const StoryGenerator: React.FC = () => {
         throw error;
       }
 
-      const storyData = await generateStory(topic, storyLength, imageStyle, storyModel, imageModel, storyStyle, tokenResponse.accessToken);
+      const storyData = await generateStory(topic, storyLength, imageStyle, storyModel, imageModel, storyStyle, voiceName, tokenResponse.accessToken);
       
       // Deduct credits immediately after successful generation
       const requiredCredits = getRequiredCredits(storyLength.toUpperCase() as keyof typeof STORY_CREDIT_COSTS);
@@ -88,7 +89,14 @@ export const StoryGenerator: React.FC = () => {
         return newCredits;
       });
 
-      navigate('/story', { state: { storyData } });
+      navigate('/story', { 
+        state: { 
+          storyData: {
+            ...storyData,
+            voiceName 
+          } 
+        } 
+      });
     } catch (error) {
       console.error('Error:', error);
       setError(error instanceof Error ? error.message : 'An unexpected error occurred.');
@@ -235,6 +243,26 @@ export const StoryGenerator: React.FC = () => {
               .split('_')  
               .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()) 
               .join('_')  
+              }
+            </MenuItem>
+          ))}
+        </Select>
+      </FormControl>
+      <FormControl fullWidth margin="normal">
+        <InputLabel id="voice-name-label">Voice Name</InputLabel>
+        <Select
+          labelId="voice-name-label"
+          id="voice-name"
+          value={voiceName}
+          label="voice Name"
+          onChange={(e: SelectChangeEvent) => setVoiceName(e.target.value as typeof VOICES[keyof typeof VOICES])}
+        >
+          {Object.entries(VOICES).map(([key, value]) => (
+            <MenuItem key={value} value={value}>
+              {key 
+                .split('_')  
+                .map(word => word.charAt(0).toUpperCase() + word.slice(1)) 
+                .join(' ')  
               }
             </MenuItem>
           ))}

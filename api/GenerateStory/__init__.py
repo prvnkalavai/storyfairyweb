@@ -585,6 +585,14 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
             except ValueError:
                 story_style = 'adventure'
 
+        voice_name = req.params.get('voiceName', 'en-US-AvaNeural')
+        if not voice_name:
+            try:
+                req_body = req.get_json()
+                voice_name = req_body.get('voiceName', 'en-US-AvaNeural')
+            except ValueError:
+                voice_name = 'en-US-AvaNeural'
+
         # Generate story using the specified model
         logging.info(f"Generating story with model: {story_model}")
         if story_model == 'gemini':
@@ -675,7 +683,8 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
             "detailedStoryUrl": detailed_story_url,
             "images": image_results,
             "imageContainerName": IMAGE_CONTAINER_NAME,
-            "blobStorageConnectionString": config.storage_conn
+            "blobStorageConnectionString": config.storage_conn,
+            "voiceName":voice_name
         }
 
         return func.HttpResponse(
