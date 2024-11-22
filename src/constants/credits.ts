@@ -12,21 +12,21 @@ export const STORY_CREDIT_COSTS = {
     {
       id: 'basic',
       credits: 10,
-      price: 2.49,
+      price: 1.99,
       name: 'Basic Pack',
       description: '10 credits - Perfect for short stories'
     },
     {
       id: 'popular',
       credits: 25,
-      price: 4.99,
+      price: 3.99,
       name: 'Popular Pack',
       description: '25 credits - Great value for medium stories'
     },
     {
       id: 'premium',
       credits: 60,
-      price: 9.99,
+      price: 7.99,
       name: 'Premium Pack',
       description: '60 credits - Best value for long stories'
     }

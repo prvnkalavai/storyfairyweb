@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button, TextField, MenuItem, SelectChangeEvent, FormControl, InputLabel, Select, Alert, Snackbar } from '@mui/material';
 import { Mic, MicOff } from 'lucide-react';
@@ -7,12 +7,13 @@ import { generateStory } from '../services/api';
 import { InteractionStatus, InteractionRequiredAuthError } from '@azure/msal-browser';
 import { useMsal, useIsAuthenticated } from '@azure/msal-react';
 import { IMAGE_STYLES, STORY_LENGTHS, STORY_MODELS, IMAGE_MODELS, STORY_STYLES, VOICES } from '../constants/config';
-import { STORY_CREDIT_COSTS, CREDIT_PACKAGES } from '../constants/credits';
 import { tokenRequest } from '../authConfig';
-import { ConfirmationDialog, PurchaseDialog } from './CreditDialogs';
 import InfoIcon from '@mui/icons-material/Info';
 import IconButton from '@mui/material/IconButton';
 import HelpDialog from './HelpDialog';
+import { getUserCredits } from '../services/creditService';
+import { STORY_CREDIT_COSTS, CREDIT_PACKAGES } from '../constants/credits';
+import { ConfirmationDialog, PurchaseDialog } from './CreditDialogs';
 
 export const StoryGenerator: React.FC = () => {
   const [topic, setTopic] = useState('');
@@ -24,15 +25,15 @@ export const StoryGenerator: React.FC = () => {
   const [voiceName, setVoiceName] = useState<typeof VOICES[keyof typeof VOICES]>(VOICES.Ava_US);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
-  const [showPurchaseDialog, setShowPurchaseDialog] = useState(false);
-  const [userCredits, setUserCredits] = useState(15); // Initial credits, in production this should come from backend
   const navigate = useNavigate();
   const { instance, inProgress } = useMsal();
   const isAuthenticated = useIsAuthenticated();
   const { isListening, toggleListening, error: speechError } = useSpeechRecognition((transcript) => {
     setTopic(transcript);
   });
+  const [userCredits, setUserCredits] = useState<number | null>(null);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [showPurchaseDialog, setShowPurchaseDialog] = useState(false);
 
   const getRequiredCredits = (length: keyof typeof STORY_CREDIT_COSTS) => {
     return STORY_CREDIT_COSTS[length];
@@ -43,6 +44,23 @@ export const StoryGenerator: React.FC = () => {
   content: '' 
   });
 
+  // Add this effect to fetch user credits on component mount
+  useEffect(() => {
+    const fetchCredits = async () => {
+      if (isAuthenticated) {
+        try {
+          const credits = await getUserCredits();
+          setUserCredits(credits);
+        } catch (error) {
+          console.error('Failed to fetch credits:', error);
+          setError('Failed to fetch credits');
+        }
+      }
+    };
+  
+    fetchCredits();
+    }, [isAuthenticated]);
+
   const handleGenerate = async (isRandom: boolean = false) => {
     if (!isAuthenticated) {
       setError('Please sign in to generate stories');
@@ -51,7 +69,7 @@ export const StoryGenerator: React.FC = () => {
 
     const requiredCredits = getRequiredCredits(storyLength.toUpperCase() as keyof typeof STORY_CREDIT_COSTS);
     
-    if (userCredits < requiredCredits) {
+    if (userCredits != null && userCredits < requiredCredits) {
       setShowPurchaseDialog(true);
       return;
     }
@@ -92,6 +110,7 @@ export const StoryGenerator: React.FC = () => {
       // Deduct credits immediately after successful generation
       const requiredCredits = getRequiredCredits(storyLength.toUpperCase() as keyof typeof STORY_CREDIT_COSTS);
       setUserCredits(prevCredits => {
+        if(prevCredits === null) return null;
         const newCredits = prevCredits - requiredCredits;
         console.log(`Credits deducted: ${requiredCredits}, New balance: ${newCredits}`);
         return newCredits;
@@ -119,15 +138,19 @@ export const StoryGenerator: React.FC = () => {
   };
 
   const handlePurchaseCredits = async (packageId: string) => {
-    // In production, this would integrate with a payment system
-    const selectedPackage = CREDIT_PACKAGES.find(pkg => pkg.id === packageId);
-    if (selectedPackage) {
-      setUserCredits(prev => {
-        const newCredits = prev + selectedPackage.credits;
-        console.log(`Credits purchased: ${selectedPackage.credits}, New balance: ${newCredits}`);
-        return newCredits;
-      });
+    try{
+      const selectedPackage = CREDIT_PACKAGES.find(pkg => pkg.id === packageId);
+      if (!selectedPackage) {
+        throw new Error('Invalid Package Selected');
+      }
+      setUserCredits(prevCredits => {
+        if(prevCredits === null) return selectedPackage.credits;
+          return prevCredits + selectedPackage.credits;
+        });
       setShowPurchaseDialog(false);
+    } catch (error){
+      console.error('Error purchasing credits:', error);
+      setError('Failed to purchase credits');
     }
   };
 
@@ -177,9 +200,11 @@ export const StoryGenerator: React.FC = () => {
     <div className="max-w-4xl mx-auto p-6 pt-36">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold mb-6 text-white">Story Generator</h1>
-        <div className="bg-white/80 px-4 py-2 rounded-full">
-          <span className="font-medium">Credits: {userCredits}</span>
-        </div>
+        {userCredits !== null && (
+          <div className="bg-white/80 px-4 py-2 rounded-full">
+            <span className="font-medium">Credits: {userCredits}</span>
+          </div>
+        )}
       </div>
     
       <div className="p-6 bg-white/60 backdrop-blur-sm rounded-lg shadow-lg"> 
@@ -388,7 +413,7 @@ export const StoryGenerator: React.FC = () => {
         open={showPurchaseDialog}
         onClose={() => setShowPurchaseDialog(false)}
         onPurchase={handlePurchaseCredits}
-        currentCredits={userCredits}
+        currentCredits={userCredits ?? 0}
         creditsNeeded={getRequiredCredits(storyLength.toUpperCase() as keyof typeof STORY_CREDIT_COSTS)}
         packages={CREDIT_PACKAGES}
       />
