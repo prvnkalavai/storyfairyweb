@@ -18,7 +18,7 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
                 
       # Validate token
         token = auth_middleware.get_token_from_header(req)
-        #logging.info(f"Token: {token}")
+        logging.info(f"Token: {token}")
         if not token:
           return func.HttpResponse(
               json.dumps({"error": "No authorization token provided"}),
@@ -27,7 +27,7 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
           )
 
         claims = auth_middleware.validate_token(token)
-        #logging.info(f"Claims: {claims}")
+        logging.info(f"Claims: {claims}")
 
         user_id = claims['sub']
 
@@ -37,13 +37,24 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
         return func.HttpResponse(
           json.dumps({"credits": credits}),
           status_code=200,
-          mimetype="application/json"
+          mimetype="application/json",
+          headers={
+              'Access-Control-Allow-Origin': '*',
+              'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+              'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+          }
         )
+    
 
     except Exception as error:
         logging.error(f'Error in GetUserCredits: {str(error)}')
         return func.HttpResponse(
           json.dumps({"error": str(error)}),
           status_code=500,
-          mimetype="application/json"
+          mimetype="application/json",
+          headers={
+              'Access-Control-Allow-Origin': '*',
+              'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+              'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+          }
         )
