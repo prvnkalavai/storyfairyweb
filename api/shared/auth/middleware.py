@@ -21,34 +21,49 @@ class AuthMiddleware:
 
     def get_token_from_header(self, req: HttpRequest) -> Optional[str]:
       auth_header = req.headers.get('Authorization', '')
-      logging.info(f"Auth header: {auth_header}")
+      logging.info(f"Auth header present: {bool(auth_header)}")
       if not auth_header or not auth_header.startswith('Bearer '):
+          logging.error("Missing or invalid authorization header")
           return None
-      return auth_header[7:]  # Remove 'Bearer ' prefix
+      token= auth_header[7:]
+      logging.info("token successfully extracted from header")
+      return token  # Remove 'Bearer ' prefix
 
     def _get_signing_key(self, kid: str) -> Optional[str]:
-      if not self._jwks:
-          response = requests.get(self.jwks_uri)
-          logging.info(f"JWKS response status: {response.status_code}")
-          logging.info(f"JWKS response content: {response.text}")
-          self._jwks = response.json()
+        try:
+            if not self._jwks:
+                response = requests.get(self.jwks_uri)
+                logging.info(f"JWKS URI response status: {response.status_code}")
+                if response.status_code != 200:
+                    logging.error(f"Failed to fetch JWKS: {response.text}")
+                    raise ValueError(f"Failed to fetch JWKS: {response.status_code}")
+                self._jwks = response.json()
+                logging.info("JWKS fetched successfully")
 
-      for key in self._jwks['keys']:
-          if key['kid'] == kid:
-              return jwt.algorithms.RSAAlgorithm.from_jwk(json.dumps(key))
-      return None
+            for key in self._jwks['keys']:
+                if key['kid'] == kid:
+                    logging.info(f"Found matching key for kid: {kid}")
+                    return jwt.algorithms.RSAAlgorithm.from_jwk(json.dumps(key))
+
+            logging.error(f"No matching key found for kid: {kid}")
+            return None
+        except Exception as e:
+            logging.error(f"Error getting signing key: {str(e)}")
+            raise
 
     def validate_token(self, token: str) -> Dict[str, Any]:
       try:
           # Decode token header to get key ID (kid)
           header = jwt.get_unverified_header(token)
           if not header or 'kid' not in header:
+              logging.error(f"Invalid token header: {header}")  # Add logging
               raise ValueError('Invalid token header')
 
           # Get the signing key
           signing_key = self._get_signing_key(header['kid'])
           logging.info(f"Signing key: {signing_key}")
           if not signing_key:
+              logging.error(f"No signing key found for kid: {header['kid']}")
               raise ValueError('Signing key not found')
 
           # Verify token
@@ -56,15 +71,26 @@ class AuthMiddleware:
           logging.info(f"Issuer: {issuer}")
           # Decode the token without verification to inspect claims
           unverified_claims = jwt.decode(token, options={"verify_signature": False})
-          logging.info(f"Token Issuer: {unverified_claims.get('iss')}")
+          logging.info(f"Token issuer: {unverified_claims.get('iss')}")
+          logging.info(f"Expected issuer: {issuer}")
+          logging.info(f"Token audience: {unverified_claims.get('aud')}")
+          logging.info(f"Expected audience: {self.client_id}")
           decoded = jwt.decode(
               token,
               signing_key,
               algorithms=['RS256'],
               audience=self.client_id,
-              issuer=issuer
+              issuer=issuer,
+              options={
+                'verify_aud': True,
+                'verify_iss': True,
+                'verify_exp': True,
+                'verify_nbf': False,  # More lenient with "not before" validation
+                'verify_iat': False,  # More lenient with "issued at" validation
+              }
           )
           return decoded
 
       except Exception as e:
+          logging.error(f"Token validation failed with error: {str(e)}")
           raise ValueError(f"Token validation failed: {str(e)}")
