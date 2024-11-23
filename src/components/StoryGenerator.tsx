@@ -11,7 +11,7 @@ import { tokenRequest } from '../authConfig';
 import InfoIcon from '@mui/icons-material/Info';
 import IconButton from '@mui/material/IconButton';
 import HelpDialog from './HelpDialog';
-import { getUserCredits } from '../services/creditService';
+import { getUserCredits, deductCredits } from '../services/creditService';
 import { STORY_CREDIT_COSTS, CREDIT_PACKAGES } from '../constants/credits';
 import { ConfirmationDialog, PurchaseDialog } from './CreditDialogs';
 
@@ -49,6 +49,7 @@ export const StoryGenerator: React.FC = () => {
     const fetchCredits = async () => {
       if (isAuthenticated) {
         try {
+          console.log("About to getUserCredits")
           const credits = await getUserCredits();
           setUserCredits(credits);
         } catch (error) {
@@ -109,27 +110,35 @@ export const StoryGenerator: React.FC = () => {
       
       // Deduct credits immediately after successful generation
       const requiredCredits = getRequiredCredits(storyLength.toUpperCase() as keyof typeof STORY_CREDIT_COSTS);
-      setUserCredits(prevCredits => {
-        if(prevCredits === null) return null;
-        const newCredits = prevCredits - requiredCredits;
-        console.log(`Credits deducted: ${requiredCredits}, New balance: ${newCredits}`);
-        return newCredits;
-      });
+      try {
+        const newBalance = await deductCredits(
+            requiredCredits,
+            `Story generation - ${storyLength} length story`
+        );
 
-      navigate('/story', { 
-        state: { 
-          storyData: {
-            ...storyData,
-            voiceName 
-          } 
-        } 
-      });
+        // Update the credits display
+        setUserCredits(newBalance);
+
+        // Navigate to story page
+        navigate('/story', {
+            state: {
+                storyData: {
+                    ...storyData,
+                    voiceName
+                }
+            }
+        });
+      } catch (error) {
+        console.error('Failed to deduct credits:', error);
+        setError('Story was generated but failed to deduct credits. Please contact support.');
+        // You might want to log this situation for administrative review
+      }
     } catch (error) {
       console.error('Error:', error);
       setError(error instanceof Error ? error.message : 'An unexpected error occurred.');
     } finally {
       setIsLoading(false);
-    }
+      }
   };
 
   const handleRandomStory = () => {

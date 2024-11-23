@@ -3,8 +3,8 @@ import { getAuthToken } from '../utils/auth';
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 
 export const getUserCredits = async (): Promise<number> => {
-  const token = await getAuthToken();
-  const response = await fetch(`${API_BASE_URL}/api/credits`, {
+    const token = await getAuthToken();
+    const response = await fetch(`${API_BASE_URL}/api/credits`, {
       headers: {
           'Authorization': `Bearer ${token}`
       }
@@ -33,7 +33,8 @@ export const deductCredits = async (amount: number, description: string): Promis
       if (response.status === 402) {
           throw new Error('Insufficient credits');
       }
-      throw new Error('Failed to deduct credits');
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to deduct credits');
   }
 
   const data = await response.json();
