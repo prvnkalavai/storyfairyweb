@@ -26,7 +26,7 @@ class AuthMiddleware:
           logging.error("Missing or invalid authorization header")
           return None
       token= auth_header[7:]
-      logging.info("token successfully extracted from header", token)
+      logging.info(f"Token successfully extracted from header: {token}")
       return token  # Remove 'Bearer ' prefix
 
     def _get_signing_key(self, kid: str) -> Optional[str]:
