@@ -1,6 +1,7 @@
 import { getAuthToken } from '../utils/auth';
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+console.log('API_BASE_URL:', API_BASE_URL);
 
 export const getUserCredits = async (): Promise<number> => {
     const token = await getAuthToken();

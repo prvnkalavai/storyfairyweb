@@ -50,6 +50,7 @@ jobs:
           REACT_APP_B2C_USER_FLOW: ${{ secrets.REACT_APP_B2C_USER_FLOW }}
           REACT_APP_AZURE_REGION: ${{ secrets.REACT_APP_AZURE_REGION }}
           REACT_APP_AZURE_SPEECH_KEY: ${{ secrets.REACT_APP_AZURE_SPEECH_KEY}}
+          REACT_APP_API_BASE_URL: ${{secrets.REACT_APP_API_BASE_URL}}
 
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
