@@ -14,7 +14,7 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
           user_flow=str(os.environ.get('REACT_APP_B2C_USER_FLOW')),
           tenant_id=str(os.environ.get('REACT_APP_B2C_TENANT_ID'))
         )
-        #logging.info("Auth middleware initialized successfully")
+        logging.info("Auth middleware initialized successfully")
                 
       # Validate token
         token = auth_middleware.get_token_from_header(req)

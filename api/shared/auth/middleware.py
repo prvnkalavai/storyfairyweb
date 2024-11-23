@@ -13,15 +13,15 @@ class AuthMiddleware:
       self.tenant_id = tenant_id
       self.jwks_uri = f"https://{tenant}.b2clogin.com/{tenant}.onmicrosoft.com/{user_flow}/discovery/v2.0/keys"
       self._jwks = None
-      #logging.info("jwks_uri: " + self.jwks_uri)
-      #logging.info("client_id: " + self.client_id)
-      #logging.info("tenant: " + self.tenant)
-      #logging.info("user_flow: " + self.user_flow)
-      #logging.info("tenant_id: " + self.tenant_id)
+      logging.info("jwks_uri: " + self.jwks_uri)
+      logging.info("client_id: " + self.client_id)
+      logging.info("tenant: " + self.tenant)
+      logging.info("user_flow: " + self.user_flow)
+      logging.info("tenant_id: " + self.tenant_id)
 
     def get_token_from_header(self, req: HttpRequest) -> Optional[str]:
       auth_header = req.headers.get('Authorization', '')
-      #logging.info(f"Auth header: {auth_header}")
+      logging.info(f"Auth header: {auth_header}")
       if not auth_header or not auth_header.startswith('Bearer '):
           return None
       return auth_header[7:]  # Remove 'Bearer ' prefix
@@ -29,8 +29,8 @@ class AuthMiddleware:
     def _get_signing_key(self, kid: str) -> Optional[str]:
       if not self._jwks:
           response = requests.get(self.jwks_uri)
-          #logging.info(f"JWKS response status: {response.status_code}")
-          #logging.info(f"JWKS response content: {response.text}")
+          logging.info(f"JWKS response status: {response.status_code}")
+          logging.info(f"JWKS response content: {response.text}")
           self._jwks = response.json()
 
       for key in self._jwks['keys']:
@@ -53,10 +53,10 @@ class AuthMiddleware:
 
           # Verify token
           issuer = f"https://{self.tenant}.b2clogin.com/{self.tenant_id}/v2.0/"
-          #logging.info(f"Issuer: {issuer}")
+          logging.info(f"Issuer: {issuer}")
           # Decode the token without verification to inspect claims
           unverified_claims = jwt.decode(token, options={"verify_signature": False})
-          #logging.info(f"Token Issuer: {unverified_claims.get('iss')}")
+          logging.info(f"Token Issuer: {unverified_claims.get('iss')}")
           decoded = jwt.decode(
               token,
               signing_key,
