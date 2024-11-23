@@ -26,7 +26,7 @@ class AuthMiddleware:
           logging.error("Missing or invalid authorization header")
           return None
       token= auth_header[7:]
-      logging.info("token successfully extracted from header")
+      logging.info("token successfully extracted from header", token)
       return token  # Remove 'Bearer ' prefix
 
     def _get_signing_key(self, kid: str) -> Optional[str]:
@@ -55,9 +55,12 @@ class AuthMiddleware:
       try:
           # Decode token header to get key ID (kid)
           header = jwt.get_unverified_header(token)
+          logging.info(f"Token header: {header}") 
           if not header or 'kid' not in header:
               logging.error(f"Invalid token header: {header}")  # Add logging
               raise ValueError('Invalid token header')
+          if header.get('alg') != 'RS256':
+            raise ValueError(f'Invalid token algorithm. Expected RS256, got {header.get("alg")}')
 
           # Get the signing key
           signing_key = self._get_signing_key(header['kid'])
@@ -82,12 +85,13 @@ class AuthMiddleware:
               audience=self.client_id,
               issuer=issuer,
               options={
+                'verify_signature': True,
                 'verify_aud': True,
                 'verify_iss': True,
                 'verify_exp': True,
-                'verify_nbf': False,  # More lenient with "not before" validation
-                'verify_iat': False,  # More lenient with "issued at" validation
-              }
+                'require_exp': True,
+                'require_iat': True,
+                }
           )
           return decoded
 
