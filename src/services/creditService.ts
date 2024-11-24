@@ -11,7 +11,9 @@ export const getUserCredits = async (): Promise<number> => {
     try {
         const response = await fetch(apiUrl, {
             headers: {
-                'Authorization': `Bearer ${token}`
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+                'X-MS-CLIENT-PRINCIPAL-ID': token
             }
         });
   
