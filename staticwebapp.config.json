@@ -4,6 +4,14 @@
             "route": "/api/*",
             "methods": ["GET", "POST"],
             "allowedRoles": ["authenticated"]
+        },
+        {
+            "route": "/.auth/login/b2c",
+            "statusCode": 200
+        },
+        {
+            "route": "/.auth/login/b2c/callback",
+            "statusCode": 200
         }
     ],
     "auth": {
@@ -31,6 +39,7 @@
         "apiRuntime": "python:3.10"
     },
     "navigationFallback": {
-        "rewrite": "/index.html"
+        "rewrite": "/index.html",
+        "exclude": ["/.auth/*"]
     }
   }

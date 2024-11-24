@@ -50,16 +50,12 @@ class AuthMiddleware:
         except Exception as e:
             logging.error(f"Error getting signing key: {str(e)}")
             raise
-
     def validate_token(self, token: str) -> Dict[str, Any]:
         try:
-            # Decode token header to get key ID (kid)
             header = jwt.get_unverified_header(token)
             logging.info(f"Token header: {header}")
 
-            # First verify if it's a B2C token
             if 'kid' in header and header.get('alg') == 'RS256':
-                # Handle B2C token validation
                 signing_key = self._get_signing_key(header['kid'])
                 if not signing_key:
                     logging.error(f"No signing key found for kid: {header['kid']}")
@@ -71,17 +67,23 @@ class AuthMiddleware:
                     signing_key,
                     algorithms=['RS256'],
                     audience=self.client_id,
-                    issuer=issuer
+                    issuer=issuer,
+                    options={
+                        'verify_aud': True,
+                        'verify_iss': True,
+                        'verify_exp': True
+                    }
                 )
+                logging.info("B2C token validated successfully")
                 return decoded
             elif header.get('alg') == 'HS256':
-                # Handle Static Web Apps token
-                # Note: Static Web Apps handles its own token validation
+                # For Static Web Apps internal token
                 decoded = jwt.decode(token, options={"verify_signature": False})
+                logging.info("Static Web Apps token decoded")
                 return decoded
             else:
-                raise ValueError(f'Invalid token algorithm: {header.get("alg")}')
+                raise ValueError(f'Unsupported token algorithm: {header.get("alg")}')
 
         except Exception as e:
-            logging.error(f"Token validation failed with error: {str(e)}")
+            logging.error(f"Token validation failed: {str(e)}")
             raise ValueError(f"Token validation failed: {str(e)}")
