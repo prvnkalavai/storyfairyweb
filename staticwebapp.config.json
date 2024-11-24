@@ -1,36 +1,36 @@
 {
     "routes": [
         {
-            "route": "/api/*", 
-            "methods": ["GET", "POST"]
+            "route": "/api/*",
+            "methods": ["GET", "POST"],
+            "allowedRoles": ["authenticated"]
         }
     ],
+    "auth": {
+        "identityProviders": {
+            "customOpenIdConnectProviders": {
+                "b2c": {
+                    "registration": {
+                        "clientCredential": {
+                            "clientSecretSettingName": "AZURE_CLIENT_SECRET"
+                        },
+                        "openIdConnectConfiguration": {
+                            "wellKnownOpenIdConfiguration": "https://storyfairy.b2clogin.com/011d91cd-02a5-4ba6-a39c-5d99324308f4/v2.0/.well-known/openid-configuration"
+                        }
+                    },
+                    "login": {
+                        "nameClaimType": "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name",
+                        "scopes": ["openid", "profile"],
+                        "loginParameterNames": []
+                    }
+                }
+            }
+        }
+    },
     "platform": {
-          "apiRuntime": "python:3.10"
-        },
+        "apiRuntime": "python:3.10"
+    },
     "navigationFallback": {
         "rewrite": "/index.html"
-      },
-        "auth": {
-          "identityProviders": {
-            "customOpenIdConnectProviders": {
-              "aadb2c": {
-                "registration": {
-                  "clientIdSettingName": "AADB2C_PROVIDER_CLIENT_ID",
-                  "clientCredential": {
-                    "clientSecretSettingName": "AADB2C_PROVIDER_CLIENT_SECRET"
-                  },
-                  "openIdConnectConfiguration": {
-                    "wellKnownOpenIdConfiguration": "https://storyfairy.b2clogin.com/storyfairy.onmicrosoft.com/B2C_1_Storyfairy_SUSI/v2.0/.well-known/openid-configuration"
-                  }
-                },
-                "login": {
-                  "nameClaimType": "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name",
-                  "scopes": [],
-                  "loginParameterNames": []
-                }
-              }
-            }
-          }
-        }
     }
+  }
