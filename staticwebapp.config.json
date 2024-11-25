@@ -2,8 +2,13 @@
     "routes": [
         {
             "route": "/api/*",
-            "methods": ["GET", "POST"],
-            "allowedRoles": ["authenticated"]
+            "methods": ["GET", "POST", "OPTIONS"],
+            "allowedRoles": ["authenticated"],
+            "headers": {
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Headers": "Authorization, Content-Type, X-MS-CLIENT-PRINCIPAL-ID",
+                "Access-Control-Allow-Methods": "GET, POST, OPTIONS"
+            }
         }
     ],
     "platform": {
@@ -12,5 +17,15 @@
     "navigationFallback": {
         "rewrite": "/index.html",
         "exclude": ["/.auth/*"]
+    },
+    "auth": {
+      "identityProviders": {
+          "azureActiveDirectory": {
+              "registration": {
+                  "openIdIssuer": "https://REACT_APP_B2C_TENANT.b2clogin.com/REACT_APP_B2C_TENANT_ID/v2.0/",
+                  "clientSecretSettingName": "AZURE_CLIENT_SECRET"
+              }
+          }
+      }
     }
   }

@@ -13,8 +13,10 @@ export const getUserCredits = async (): Promise<number> => {
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json',
-                'X-MS-CLIENT-PRINCIPAL-ID': token
-            }
+                'X-MS-CLIENT-PRINCIPAL-ID': token,
+                'Accept': 'application/json'
+            },
+            credentials: 'include'
         });
   
         if (!response.ok) {
@@ -40,8 +42,10 @@ export const deductCredits = async (amount: number, description: string): Promis
       headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
-          'X-MS-CLIENT-PRINCIPAL-ID': token
+          'X-MS-CLIENT-PRINCIPAL-ID': token,
+          'Accept': 'application/json'
       },
+      credentials: 'include',
       body: JSON.stringify({ amount, description })
   });
 
