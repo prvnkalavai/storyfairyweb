@@ -21,6 +21,7 @@ export const getAuthToken = async (): Promise<string> => {
 
   try {
       const authResult: AuthenticationResult = await msalInstance.acquireTokenSilent(silentRequest);
+      console.log("authResult from auth.ts: ",authResult)
       return authResult.accessToken;
   } catch (error) {
       if (error instanceof InteractionRequiredAuthError) {
