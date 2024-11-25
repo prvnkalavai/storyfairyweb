@@ -10,7 +10,8 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
   try:
       # Get the claims from the request object (set by the decorator)
       claims = getattr(req, 'auth_claims')
-      user_id = claims['sub']
+      logging.info(f"Token Claims: {claims}")
+      user_id = claims.get('sub') or claims.get('oid') or claims.get('name')
       logging.info(f"Processing request for user_id: {user_id}")
 
       credit_service = CreditService()

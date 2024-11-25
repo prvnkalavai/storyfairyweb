@@ -16,10 +16,10 @@ def require_auth(func: T) -> T:
       try:
           # Initialize AuthMiddleware here instead of importing
           auth_middleware = AuthMiddleware(
-              tenant=str(os.environ.get('REACT_APP_B2C_TENANT')),
-              client_id=str(os.environ.get('REACT_APP_B2C_CLIENT_ID')),
-              user_flow=str(os.environ.get('REACT_APP_B2C_USER_FLOW')),
-              tenant_id=str(os.environ.get('REACT_APP_B2C_TENANT_ID'))
+              tenant=os.environ.get('REACT_APP_B2C_TENANT',''),
+              client_id=os.environ.get('REACT_APP_B2C_CLIENT_ID',''),
+              user_flow=os.environ.get('REACT_APP_B2C_USER_FLOW',''),
+              tenant_id=os.environ.get('REACT_APP_B2C_TENANT_ID','')
           )
 
           token = auth_middleware.get_token_from_header(req)

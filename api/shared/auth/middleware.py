@@ -1,7 +1,6 @@
 # api/shared/auth/middleware.py
 import jwt
 from jwt import PyJWKClient
-import json
 import logging
 from typing import Optional, Dict, Any
 from azure.functions import HttpRequest
@@ -19,6 +18,7 @@ class AuthMiddleware:
 
       # Support both issuer formats
       self.issuer = f"https://{self.tenant}.b2clogin.com/{self.tenant_id}/v2.0/"
+      #self.issuer = f"https://{self.tenant}.b2clogin.com/tfp/{self.tenant_id}/{self.user_flow}/v2.0/"
 
       # Initialize PyJWKClient
       self._jwks_client = PyJWKClient(self.jwks_uri)
@@ -49,47 +49,21 @@ class AuthMiddleware:
   def validate_token(self, token: str) -> Dict[str, Any]:
       """Validate JWT token and return claims if valid"""
       try:
-          header = jwt.get_unverified_header(token)
-          logging.info(f"Token header: {header}")
-
-          if header.get('alg') == 'RS256':
-              # Let PyJWKClient handle the key management
-              signing_key = self._jwks_client.get_signing_key_from_jwt(token)
-
-              # Try both issuer formats
-              for issuer in [self.issuer]:
-                  try:
-                      decoded = jwt.decode(
-                          token,
-                          signing_key.key,
-                          algorithms=['RS256'],
-                          audience=self.client_id,
-                          issuer=self.issuer,
-                          options={
-                              'verify_aud': True,
-                              'verify_iss': True,
-                              'verify_exp': True
-                          }
-                      )
-                      logging.info(f"Token validated successfully with issuer: {issuer}")
-                      return decoded
-                  except jwt.InvalidIssuerError:
-                      logging.warning(f"Invalid issuer for format: {issuer}")
-                      continue
-                  except Exception as e:
-                      logging.error(f"Unexpected error during token validation: {str(e)}")
-                      raise
-
-              # If we get here, neither issuer format worked
-              raise jwt.InvalidIssuerError("Token validation failed for both issuer formats")
-
-          elif header.get('alg') == 'HS256':
-              # For Static Web Apps internal token
-              decoded = jwt.decode(token, options={"verify_signature": False})
-              logging.info("Static Web Apps token decoded")
-              return decoded
-          else:
-              raise ValueError(f'Unsupported token algorithm: {header.get("alg")}')
+          signing_key = self._jwks_client.get_signing_key_from_jwt(token)
+          decoded = jwt.decode(
+              token,
+              signing_key.key,
+              algorithms=['RS256'],
+              audience=self.client_id,
+              issuer=self.issuer,
+              options={
+                  'verify_aud': True,
+                  'verify_iss': True,
+                  'verify_exp': True
+              }
+          )
+          logging.info(f"Token validated successfully with issuer: {self.issuer}")
+          return decoded
 
       except jwt.ExpiredSignatureError:
           logging.error("Token has expired")

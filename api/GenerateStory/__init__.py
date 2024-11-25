@@ -18,7 +18,8 @@ import google.generativeai as genai
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import Any, Dict
-from .auth.middleware import AuthMiddleware
+from ..shared.auth.middleware import AuthMiddleware
+
 
 # Declare the global variable at module level
 auth_middleware = None
@@ -41,6 +42,7 @@ class Config:
     b2c_client_id: str
     b2c_tenant: str
     b2c_user_flow: str
+    b2c_tenant_id: str
 
 
 
@@ -56,16 +58,20 @@ async def initialize_auth(config):
         tenant = config.b2c_tenant
         client_id = config.b2c_client_id
         user_flow = config.b2c_user_flow
+        tenant_id = config.b2c_tenant_id
+
         
 
-        if not all([tenant, client_id, user_flow]):
+        if not all([tenant, client_id, user_flow, tenant_id]):
             logging.error("Missing required B2C configuration")
             raise ValueError("Missing required B2C configuration")
             
         auth_middleware = AuthMiddleware(
             tenant=tenant,
             client_id=client_id,
-            user_flow=user_flow
+            user_flow=user_flow,
+            tenant_id=tenant_id
+        
         )
         logging.info("Auth middleware initialized successfully")
         return auth_middleware
@@ -427,7 +433,8 @@ async def get_secrets() -> Config:
                 asyncio.to_thread(client.get_secret, "grok-api-key"),
                 asyncio.to_thread(client.get_secret, "b2c-client-id"),
                 asyncio.to_thread(client.get_secret, "b2c-tenant"),
-                asyncio.to_thread(client.get_secret, "b2c-user-flow")
+                asyncio.to_thread(client.get_secret, "b2c-user-flow"),
+                asyncio.to_thread(client.get_secret, "b2c-tenant-id")
             )
             logging.info("Secrets successfully fetched from Key Vault") # Add logging for successful fetch.
             return Config(*(s.value for s in secrets))
@@ -444,7 +451,8 @@ async def get_secrets() -> Config:
             grok_key=os.environ["GROK_API_KEY"],
             b2c_client_id=os.environ["REACT_APP_B2C_CLIENT_ID"],
             b2c_tenant=os.environ["REACT_APP_B2C_TENANT"],
-            b2c_user_flow=os.environ["REACT_APP_B2C_USER_FLOW"]
+            b2c_user_flow=os.environ["REACT_APP_B2C_USER_FLOW"],
+            b2c_tenant_id=os.environ["REACT_APP_B2C_TENANT_ID"]
         )   
     except Exception as e:
         logging.exception(f"Error getting secrets: {e}") # Log the exception
