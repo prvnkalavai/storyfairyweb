@@ -1,28 +1,5 @@
 {
-    "routes": [
-        {
-            "route": "/api/credits",
-            "methods": ["GET", "POST", "OPTIONS"],
-            "allowedRoles": ["anonymous"],
-            "headers": {
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Headers": "Authorization, Content-Type, X-MS-CLIENT-PRINCIPAL-ID, Accept",
-                "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-                "Access-Control-Allow-Credentials": "true"
-            }
-        },
-        {
-            "route": "/api/credits/*",
-            "methods": ["GET", "POST", "OPTIONS"],
-            "allowedRoles": ["anonymous"],
-            "headers": {
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Headers": "Authorization, Content-Type, X-MS-CLIENT-PRINCIPAL-ID, Accept",
-                "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-                "Access-Control-Allow-Credentials": "true"
-            }
-        }
-    ],
+    "routes": [],
     "platform": {
         "apiRuntime": "python:3.10"
     },
@@ -34,7 +11,7 @@
         "identityProviders": {
             "azureActiveDirectory": {
                 "registration": {
-                    "openIdIssuer": "https://REACT_APP_B2C_TENANT.b2clogin.com/REACT_APP_B2C_TENANT_ID/v2.0/",
+                    "openIdIssuer": "https://<Your_Tenant_Domain>.b2clogin.com/<Your_Tenant_ID>/v2.0/",
                     "clientSecretSettingName": "AZURE_CLIENT_SECRET"
                 },
                 "userDetailsClaim": "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name"

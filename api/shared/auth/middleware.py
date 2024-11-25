@@ -18,8 +18,7 @@ class AuthMiddleware:
 
       # Support both issuer formats
       self.issuer = f"https://{self.tenant}.b2clogin.com/{self.tenant_id}/v2.0/"
-      #self.issuer = f"https://{self.tenant}.b2clogin.com/tfp/{self.tenant_id}/{self.user_flow}/v2.0/"
-
+      
       # Initialize PyJWKClient
       self._jwks_client = PyJWKClient(self.jwks_uri)
 
@@ -62,6 +61,8 @@ class AuthMiddleware:
                   'verify_exp': True
               }
           )
+          logging.info(f"Expected issuer: {self.issuer}")
+          logging.info(f"Token issuer: {decoded.get('iss')}")
           logging.info(f"Token validated successfully with issuer: {self.issuer}")
           return decoded
 
