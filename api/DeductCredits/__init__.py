@@ -1,31 +1,18 @@
 import logging
 import json
-import os
 import azure.functions as func
 from ..shared.services.credit_service import CreditService
-from ..shared.auth.middleware import AuthMiddleware
+from ..shared.auth.decorator import require_auth
 
+@require_auth
 async def main(req: func.HttpRequest) -> func.HttpResponse:
   try:
-      # Initialize auth middleware
-      auth_middleware = AuthMiddleware(
-          tenant=str(os.environ.get('REACT_APP_B2C_TENANT')),
-          client_id=str(os.environ.get('REACT_APP_B2C_CLIENT_ID')),
-          user_flow=str(os.environ.get('REACT_APP_B2C_USER_FLOW')),
-          tenant_id=str(os.environ.get('REACT_APP_B2C_TENANT_ID'))
-      )
+      # Get claims from the request object (set by the decorator)
+      claims = getattr(req, 'auth_claims')
+      user_id = claims.get('sub') or claims.get('oid')  # Try both sub and oid claims
 
-      # Validate token
-      token = auth_middleware.get_token_from_header(req)
-      if not token:
-          return func.HttpResponse(
-              json.dumps({"error": "No authorization token provided"}),
-              status_code=401,
-              mimetype="application/json"
-          )
-
-      claims = auth_middleware.validate_token(token)
-      user_id = claims['sub']
+      if not user_id:
+          raise ValueError("User ID not found in token claims")
 
       # Get request body
       try:
@@ -34,7 +21,12 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
           return func.HttpResponse(
               json.dumps({"error": "Invalid request body"}),
               status_code=400,
-              mimetype="application/json"
+              mimetype="application/json",
+              headers={
+                  'Access-Control-Allow-Origin': '*',
+                  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+                  'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+              }
           )
 
       amount = body.get('amount')
@@ -42,10 +34,17 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
           return func.HttpResponse(
               json.dumps({"error": "Invalid amount"}),
               status_code=400,
-              mimetype="application/json"
+              mimetype="application/json",
+              headers={
+                  'Access-Control-Allow-Origin': '*',
+                  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+                  'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+              }
           )
 
+      logging.info(f"Processing request for user_id: {user_id}")
       credit_service = CreditService()
+
       try:
           new_balance = await credit_service.deduct_credits(
               user_id=user_id,
@@ -56,7 +55,12 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
           return func.HttpResponse(
               json.dumps({"credits": new_balance}),
               status_code=200,
-              mimetype="application/json"
+              mimetype="application/json",
+              headers={
+                  'Access-Control-Allow-Origin': '*',
+                  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+                  'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+              }
           )
 
       except ValueError as ve:
@@ -64,7 +68,12 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
               return func.HttpResponse(
                   json.dumps({"error": "Insufficient credits"}),
                   status_code=402,
-                  mimetype="application/json"
+                  mimetype="application/json",
+                  headers={
+                      'Access-Control-Allow-Origin': '*',
+                      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+                      'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+                  }
               )
           raise
 
@@ -73,5 +82,10 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
       return func.HttpResponse(
           json.dumps({"error": str(error)}),
           status_code=500,
-          mimetype="application/json"
+          mimetype="application/json",
+          headers={
+              'Access-Control-Allow-Origin': '*',
+              'Access-Control-Allow-Methods': 'POST, OPTIONS',
+              'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+          }
       )
