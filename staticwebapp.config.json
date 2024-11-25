@@ -3,7 +3,18 @@
         {
             "route": "/api/credits",
             "methods": ["GET", "POST", "OPTIONS"],
-            "allowedRoles": ["authenticated"],
+            "allowedRoles": ["anonymous"],
+            "headers": {
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Headers": "Authorization, Content-Type, X-MS-CLIENT-PRINCIPAL-ID, Accept",
+                "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+                "Access-Control-Allow-Credentials": "true"
+            }
+        },
+        {
+            "route": "/api/credits/*",
+            "methods": ["GET", "POST", "OPTIONS"],
+            "allowedRoles": ["anonymous"],
             "headers": {
                 "Access-Control-Allow-Origin": "*",
                 "Access-Control-Allow-Headers": "Authorization, Content-Type, X-MS-CLIENT-PRINCIPAL-ID, Accept",
