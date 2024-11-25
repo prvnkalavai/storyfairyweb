@@ -16,7 +16,7 @@ class AuthMiddleware:
       # JWKS URL for key fetching
       self.jwks_uri = f"https://{self.tenant}.b2clogin.com/{self.tenant}.onmicrosoft.com/{self.user_flow}/discovery/v2.0/keys"
 
-      # Support both issuer formats
+      # Token Issuer
       self.issuer = f"https://{self.tenant}.b2clogin.com/{self.tenant_id}/v2.0/"
       
       # Initialize PyJWKClient
@@ -29,7 +29,7 @@ class AuthMiddleware:
       logging.info(f"tenant: {self.tenant}")
       logging.info(f"user_flow: {self.user_flow}")
       logging.info(f"tenant_id: {self.tenant_id}")
-      logging.info(f"issuer_tenant_id: {self.issuer}")
+      logging.info(f"issuer: {self.issuer}")
 
   def get_token_from_header(self, req: HttpRequest) -> Optional[str]:
       """Extract Bearer token from Authorization header"""
@@ -48,8 +48,18 @@ class AuthMiddleware:
   def validate_token(self, token: str) -> Dict[str, Any]:
       """Validate JWT token and return claims if valid"""
       try:
+          logging.info(f"Validating token: {token}")
+          # Decode the JWT header without verification to extract the 'kid' 
+          unverified_header = jwt.get_unverified_header(token) 
+          logging.info(f"Unverified JWT header: {unverified_header}")
+
+          # Fetch the signing key using the 'kid' from the header
           signing_key = self._jwks_client.get_signing_key_from_jwt(token)
-          decoded = jwt.decode(
+          if signing_key is None: 
+             logging.error("Unable to find a signing key") 
+          else: 
+             logging.info(f"Signing key: {signing_key.key}")
+          claims = jwt.decode(
               token,
               signing_key.key,
               algorithms=['RS256'],
@@ -62,9 +72,9 @@ class AuthMiddleware:
               }
           )
           logging.info(f"Expected issuer: {self.issuer}")
-          logging.info(f"Token issuer: {decoded.get('iss')}")
+          logging.info(f"Token issuer: {claims.get('iss')}")
           logging.info(f"Token validated successfully with issuer: {self.issuer}")
-          return decoded
+          return claims
 
       except jwt.ExpiredSignatureError:
           logging.error("Token has expired")
