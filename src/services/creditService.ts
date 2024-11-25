@@ -13,11 +13,8 @@ export const getUserCredits = async (): Promise<number> => {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'X-ZUMO-AUTH': token 
-            },
-            credentials: 'include'
+                'Content-Type': 'application/json'
+            }
         });
   
         if (!response.ok) {
@@ -42,11 +39,8 @@ export const deductCredits = async (amount: number, description: string): Promis
       method: 'POST',
       headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-          'X-MS-CLIENT-PRINCIPAL-ID': token,
-          'Accept': 'application/json'
+          'Content-Type': 'application/json'
       },
-      credentials: 'include',
       body: JSON.stringify({ amount, description })
   });
 
