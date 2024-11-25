@@ -10,11 +10,12 @@ export const getUserCredits = async (): Promise<number> => {
     console.log('Token:', token);
     try {
         const response = await fetch(apiUrl, {
+            method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json',
-                'X-MS-CLIENT-PRINCIPAL-ID': token,
-                'Accept': 'application/json'
+                'Accept': 'application/json',
+                'X-ZUMO-AUTH': token 
             },
             credentials: 'include'
         });
