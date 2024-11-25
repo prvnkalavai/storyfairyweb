@@ -18,8 +18,11 @@ export const getUserCredits = async (): Promise<number> => {
         });
   
         if (!response.ok) {
-            console.error('API Response:', await response.text()); 
-            throw new Error('Failed to fetch credits');
+            const errorText = await response.text();
+            console.error('API Response:', errorText);
+            console.error('Response status:', response.status);
+            console.error('Response headers:', Object.fromEntries(response.headers));
+            throw new Error(`Failed to fetch credits: ${response.status}`);
         }
   
         const data = await response.json();
@@ -36,7 +39,8 @@ export const deductCredits = async (amount: number, description: string): Promis
       method: 'POST',
       headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'X-MS-CLIENT-PRINCIPAL-ID': token
       },
       body: JSON.stringify({ amount, description })
   });

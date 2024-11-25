@@ -4,37 +4,8 @@
             "route": "/api/*",
             "methods": ["GET", "POST"],
             "allowedRoles": ["authenticated"]
-        },
-        {
-            "route": "/.auth/login/b2c",
-            "statusCode": 200
-        },
-        {
-            "route": "/.auth/login/b2c/callback",
-            "statusCode": 200
         }
     ],
-    "auth": {
-        "identityProviders": {
-            "customOpenIdConnectProviders": {
-                "b2c": {
-                    "registration": {
-                        "clientCredential": {
-                            "clientSecretSettingName": "AZURE_CLIENT_SECRET"
-                        },
-                        "openIdConnectConfiguration": {
-                            "wellKnownOpenIdConfiguration": "https://storyfairy.b2clogin.com/011d91cd-02a5-4ba6-a39c-5d99324308f4/v2.0/.well-known/openid-configuration"
-                        }
-                    },
-                    "login": {
-                        "nameClaimType": "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name",
-                        "scopes": ["openid", "profile"],
-                        "loginParameterNames": []
-                    }
-                }
-            }
-        }
-    },
     "platform": {
         "apiRuntime": "python:3.10"
     },
