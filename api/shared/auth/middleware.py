@@ -45,7 +45,7 @@ class AuthMiddleware:
           logging.error("Missing or invalid authorization header")
           return None
 
-      token = auth_header[7:]  # Remove 'Bearer ' prefix
+      token = swa_header[7:]  # Remove 'Bearer ' prefix
       logging.info(f"Token successfully extracted from header. Returning Token : {token}")
       return token
 

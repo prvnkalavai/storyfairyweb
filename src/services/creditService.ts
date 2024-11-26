@@ -14,7 +14,7 @@ export const getUserCredits = async (): Promise<number> => {
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json',
-                'x-ms-token-aad-access-token': token
+                'x-ms-token-aad-access-token': `Bearer ${token}`
             }
         });
   
@@ -41,7 +41,7 @@ export const deductCredits = async (amount: number, description: string): Promis
       headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
-          'x-ms-token-aad-access-token': token
+          'x-ms-token-aad-access-token': `Bearer ${token}`
       },
       body: JSON.stringify({ amount, description })
   });
