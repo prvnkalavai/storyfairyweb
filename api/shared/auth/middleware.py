@@ -42,7 +42,7 @@ class AuthMiddleware:
           return None
 
       token = auth_header[7:]  # Remove 'Bearer ' prefix
-      logging.info(f"Token successfully extracted from header")
+      logging.info(f"Token successfully extracted from header. Returning Token : {token}")
       return token
 
   def validate_token(self, token: str) -> Dict[str, Any]:

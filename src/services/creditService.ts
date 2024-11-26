@@ -7,7 +7,7 @@ export const getUserCredits = async (): Promise<number> => {
     const token = await getAuthToken();
     const apiUrl = `${API_BASE_URL}/api/credits`;
     console.log('Calling API URL:', apiUrl);
-    console.log('Token:', token);
+    console.log('Token being passed as part of the authorization header in the api call:', token);
     try {
         const response = await fetch(apiUrl, {
             method: 'GET',
