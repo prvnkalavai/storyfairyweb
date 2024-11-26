@@ -13,7 +13,8 @@ export const getUserCredits = async (): Promise<number> => {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'x-ms-token-aad-access-token': token
             }
         });
   
@@ -39,7 +40,8 @@ export const deductCredits = async (amount: number, description: string): Promis
       method: 'POST',
       headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'x-ms-token-aad-access-token': token
       },
       body: JSON.stringify({ amount, description })
   });

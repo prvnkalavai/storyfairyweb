@@ -21,7 +21,8 @@ def require_auth(func: T) -> T:
               user_flow=os.environ.get('REACT_APP_B2C_USER_FLOW',''),
               tenant_id=os.environ.get('REACT_APP_B2C_TENANT_ID','')
           )
-
+          logging.info(f"Logging the token from the request in decorator before extracting it in middleware: {req.headers.get('Authorization')}")
+      
           token = auth_middleware.get_token_from_header(req)
           if not token:
               return HttpResponse(

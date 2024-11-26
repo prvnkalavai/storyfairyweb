@@ -1,5 +1,12 @@
 {
-    "routes": [],
+    "routes": [
+        {
+            "route": "/api/*",
+            "headers": {
+                "X-Ms-Skip-Routing-Config": "true"
+            }
+        }
+    ],
     "platform": {
         "apiRuntime": "python:3.10"
     },
@@ -7,4 +14,4 @@
         "rewrite": "/index.html",
         "exclude": ["/.auth/*", "/api/*"]
     }
-  }
+}

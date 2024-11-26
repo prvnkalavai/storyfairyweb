@@ -9,6 +9,7 @@ from ..shared.auth.decorator import require_auth
 async def main(req: func.HttpRequest) -> func.HttpResponse:
   try:
       # Get the claims from the request object (set by the decorator)
+      logging.info(f"Logging the token from the request in init.py: {req.headers.get('Authorization')}")
       claims = getattr(req, 'auth_claims')
       logging.info(f"Token Claims: {claims}")
       user_id = claims.get('sub') or claims.get('oid') or claims.get('name')

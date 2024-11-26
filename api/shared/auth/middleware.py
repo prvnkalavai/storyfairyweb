@@ -34,9 +34,12 @@ class AuthMiddleware:
   def get_token_from_header(self, req: HttpRequest) -> Optional[str]:
       """Extract Bearer token from Authorization header"""
       auth_header = req.headers.get('Authorization', '')
-      logging.info(f"Auth Header: {auth_header}")
-      logging.info(f"All headers: {dict(req.headers)}")
-      logging.info(f"Auth header present: {bool(auth_header)}")
+      swa_header = req.headers.get('x-ms-token-aad-access-token', '')
+      logging.info(f"Auth Header from the request: {auth_header}")
+      logging.info(f"SWA Header from the request: {swa_header}")
+      logging.info("All incoming headers:")
+      for header, value in req.headers.items():
+          logging.info(f"{header}: {value}")
 
       if not auth_header or not auth_header.startswith('Bearer '):
           logging.error("Missing or invalid authorization header")
