@@ -23,23 +23,23 @@ class AuthMiddleware:
       self._jwks_client = PyJWKClient(self.jwks_uri)
 
       # Log initialization parameters
-      logging.info("Auth middleware initialized with:")
-      logging.info(f"jwks_uri: {self.jwks_uri}")
-      logging.info(f"client_id: {self.client_id}")
-      logging.info(f"tenant: {self.tenant}")
-      logging.info(f"user_flow: {self.user_flow}")
-      logging.info(f"tenant_id: {self.tenant_id}")
-      logging.info(f"issuer: {self.issuer}")
+    #   logging.info("Auth middleware initialized with:")
+    #   logging.info(f"jwks_uri: {self.jwks_uri}")
+    #   logging.info(f"client_id: {self.client_id}")
+    #   logging.info(f"tenant: {self.tenant}")
+    #   logging.info(f"user_flow: {self.user_flow}")
+    #   logging.info(f"tenant_id: {self.tenant_id}")
+    #   logging.info(f"issuer: {self.issuer}")
 
   def get_token_from_header(self, req: HttpRequest) -> Optional[str]:
       """Extract Bearer token from Authorization header"""
       auth_header = req.headers.get('Authorization', '')
       swa_header = req.headers.get('x-ms-token-aad-access-token', '')
-      logging.info(f"Auth Header from the request: {auth_header}")
+      #logging.info(f"Auth Header from the request: {auth_header}")
       logging.info(f"SWA Header from the request: {swa_header}")
-      logging.info("All incoming headers:")
-      for header, value in req.headers.items():
-          logging.info(f"{header}: {value}")
+    #   logging.info("All incoming headers:")
+    #   for header, value in req.headers.items():
+    #       logging.info(f"{header}: {value}")
 
       if not auth_header or not auth_header.startswith('Bearer '):
           logging.error("Missing or invalid authorization header")
@@ -52,10 +52,10 @@ class AuthMiddleware:
   def validate_token(self, token: str) -> Dict[str, Any]:
       """Validate JWT token and return claims if valid"""
       try:
-          logging.info(f"Validating token: {token}")
+          #logging.info(f"Validating token: {token}")
           # Decode the JWT header without verification to extract the 'kid' 
-          unverified_header = jwt.get_unverified_header(token) 
-          logging.info(f"Unverified JWT header: {unverified_header}")
+          #unverified_header = jwt.get_unverified_header(token) 
+          #logging.info(f"Unverified JWT header: {unverified_header}")
 
           # Fetch the signing key using the 'kid' from the header
           signing_key = self._jwks_client.get_signing_key_from_jwt(token)
@@ -75,8 +75,8 @@ class AuthMiddleware:
                   'verify_exp': True
               }
           )
-          logging.info(f"Expected issuer: {self.issuer}")
-          logging.info(f"Token issuer: {claims.get('iss')}")
+          #logging.info(f"Expected issuer: {self.issuer}")
+          #logging.info(f"Token issuer: {claims.get('iss')}")
           logging.info(f"Token validated successfully with issuer: {self.issuer}")
           return claims
 
