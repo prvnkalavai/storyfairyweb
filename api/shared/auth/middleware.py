@@ -34,6 +34,7 @@ class AuthMiddleware:
   def get_token_from_header(self, req: HttpRequest) -> Optional[str]:
       """Extract Bearer token from Authorization header"""
       auth_header = req.headers.get('Authorization', '')
+      logging.info(f"Auth Header: {auth_header}")
       logging.info(f"All headers: {dict(req.headers)}")
       logging.info(f"Auth header present: {bool(auth_header)}")
 
