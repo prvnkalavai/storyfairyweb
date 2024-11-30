@@ -105,7 +105,7 @@ export const StoryGenerator: React.FC = () => {
         }
         throw error;
       }
-      console.log('Token response:', tokenResponse);
+      //console.log('Token response:', tokenResponse);
 
       const storyData = await generateStory(topic, storyLength, imageStyle, storyModel, imageModel, storyStyle, voiceName, tokenResponse.accessToken);
       
