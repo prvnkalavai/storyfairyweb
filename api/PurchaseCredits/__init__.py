@@ -33,7 +33,7 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
               status_code=400,
               mimetype="application/json"
           )
-      
+      base_url = 'http://localhost:3000' if os.getenv('ENVT') == 'Development' else 'https://www.storyfairy.app'
       # Create Stripe checkout session
       session = stripe.checkout.Session.create(
           payment_method_types=['card'],
@@ -42,11 +42,12 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
               'quantity': 1,
           }],
           mode='payment',
-          success_url = 'http://localhost:3000' if os.getenv('ENVT') == 'Development' else 'https://www.storyfairy.app',
-          cancel_url=f"http://localhost:3000",
+          success_url = f"{base_url}/payment-status?status=success&session_id={{CHECKOUT_SESSION_ID}}", 
+          cancel_url = f"{base_url}/payment-status?status=cancelled",
           client_reference_id=user_id,
           metadata={
-              'user_id': user_id
+              'user_id': user_id,
+              'email': claims.get('emails')[0] if claims.get('emails') else None
           }
       )
 

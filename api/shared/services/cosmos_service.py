@@ -48,6 +48,13 @@ class CosmosService:
   async def create_user(self, user: User) -> User:
       response = self.user_container.create_item(body=user.dict())
       return User(**response)
+  
+  async def update_user(self, user: User) -> User:
+      response = self.user_container.replace_item(
+          item=user.id,
+          body=user.dict()
+      )
+      return User(**response)
 
   async def update_user_credits(self, user_id: str, credits: int) -> User:
       user = await self.get_user(user_id)
