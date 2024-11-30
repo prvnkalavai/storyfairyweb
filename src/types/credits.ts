@@ -5,5 +5,6 @@ export interface CreditPackage {
     price: number;
     name: string;
     description: string;
+    stripePriceId?: string;
   }
   

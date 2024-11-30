@@ -13,7 +13,7 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
       claims = getattr(req, 'auth_claims')
       #logging.info(f"Token Claims: {claims}")
       user_id = claims.get('sub') or claims.get('oid') or claims.get('name')
-      logging.info(f"Processing request for user_id: {user_id}")
+      #logging.info(f"Processing request for user_id: {user_id}")
 
       credit_service = CreditService()
       credits = await credit_service.get_user_credits(user_id)

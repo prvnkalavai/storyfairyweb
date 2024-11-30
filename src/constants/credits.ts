@@ -14,20 +14,23 @@ export const STORY_CREDIT_COSTS = {
       credits: 10,
       price: 1.99,
       name: 'Basic Pack',
-      description: '10 credits - Perfect for short stories'
+      description: '10 credits - Perfect for creating short stories',
+      stripePriceId: 'price_1QQdixFLmjK5620zB4pBnHqd'
     },
     {
       id: 'popular',
       credits: 25,
       price: 3.99,
       name: 'Popular Pack',
-      description: '25 credits - Great value for medium stories'
+      description: '25 credits - Great value for medium stories',
+      stripePriceId: 'price_1QQdjuFLmjK5620zkNHkpcPE'
     },
     {
       id: 'premium',
       credits: 60,
       price: 7.99,
       name: 'Premium Pack',
-      description: '60 credits - Best value for long stories'
+      description: '60 credits - Best value for long stories',
+      stripePriceId: 'price_1QQdlBFLmjK5620zTwrUJmd5'
     }
   ];

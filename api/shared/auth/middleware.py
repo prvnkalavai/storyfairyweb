@@ -36,7 +36,7 @@ class AuthMiddleware:
       auth_header = req.headers.get('Authorization', '')
       swa_header = req.headers.get('x-ms-token-aad-access-token', '')
       #logging.info(f"Auth Header from the request: {auth_header}")
-      logging.info(f"SWA Header from the request: {swa_header}")
+      #logging.info(f"SWA Header from the request: {swa_header}")
     #   logging.info("All incoming headers:")
     #   for header, value in req.headers.items():
     #       logging.info(f"{header}: {value}")
@@ -46,7 +46,7 @@ class AuthMiddleware:
           return None
 
       token = swa_header[7:]  # Remove 'Bearer ' prefix
-      logging.info(f"Token successfully extracted from header. Returning Token : {token}")
+      #logging.info(f"Token successfully extracted from header. Returning Token : {token}")
       return token
 
   def validate_token(self, token: str) -> Dict[str, Any]:
@@ -62,7 +62,8 @@ class AuthMiddleware:
           if signing_key is None: 
              logging.error("Unable to find a signing key") 
           else: 
-             logging.info(f"Signing key: {signing_key.key}")
+             #logging.info(f"Found the Signing key: {signing_key.key}")
+             logging.info(f"Found the Signing key")
           claims = jwt.decode(
               token,
               signing_key.key,

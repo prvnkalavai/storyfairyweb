@@ -19,6 +19,9 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import Any, Dict
 from ..shared.auth.middleware import AuthMiddleware
+from azure.ai.contentsafety import ContentSafetyClient
+from azure.ai.contentsafety.models import AnalyzeTextOptions, TextCategory
+from azure.core.credentials import AzureKeyCredential
 
 
 # Declare the global variable at module level
@@ -43,7 +46,8 @@ class Config:
     b2c_tenant: str
     b2c_user_flow: str
     b2c_tenant_id: str
-
+    content_moderator_key: str
+    content_moderator_endpoint: str
 
 
 async def initialize_auth(config):
@@ -126,7 +130,7 @@ async def generate_story_gemini(topic, api_key, story_length, story_style):
         response = model.generate_content(prompt)
         #logging.info(f"Raw response from Gemini: {response.text}")
         title, story, sentences = parse_story_json(response.text.strip())
-        #logging.info(f"Parsed JSON story: {story}")
+        logging.info(f"Parsed JSON story: {story}")
         return title, story, sentences
     except Exception as e:
         logging.error(f"Gemini error: {e}")
@@ -138,7 +142,16 @@ def create_story_prompt(topic, story_length="short", story_style="adventure"):
     num_sentences = sentence_count.get(story_length, 5)
     if topic:
         prompt = f"""
-        Write a {story_length}, imaginative and creative {num_sentences} sentence children's story suitable for young readers about {topic}. The story should have a happy ending and its style should be {story_style}...
+            You are a creative storyteller for children. Please ensure that the story you generate is suitable for young readers. Avoid any content that includes:
+            - Violence or harm (including physical, emotional, or verbal abuse)
+            - Bullying
+            - Inappropriate language or themes
+            - Negative stereotypes, hate speech or discrimination
+            - Any content that may be frightening or distressing
+            - Sexually suggestive content
+            - Dangerous or illegalactivities
+            - Any references to drugs, alcohol, or adult situations
+            Write a {story_length}, imaginative and creative {num_sentences} sentence children's story suitable for young readers about {topic}. The story should have a positive tone, with a happy ending, and should encourage imagination and creativity. The story style should be {story_style}...
 
             Please provide the response as a JSON object without any markdown elements or formatting. Format the story as a JSON object with each sentence as a separate entry in an array of sentences under the 'sentences' property. Additionally, generate a unique and creative title for the story and include it in a separate property called 'Title' in the JSON response object. DO NOT include any additional formatting or markdown.       
             Crucially, EVERY sentence must include these details:
@@ -157,7 +170,16 @@ def create_story_prompt(topic, story_length="short", story_style="adventure"):
             """
     else:
         prompt = """
-        Write a random {story_length}, imaginative and creative {num_sentences} sentence children's story suitable for young readers. The story should have a happy ending and its style should be {story_style}...  
+            You are a creative storyteller for children. Please ensure that the story you generate is suitable for young readers. Avoid any content that includes:
+            - Violence or harm (including physical, emotional, or verbal abuse)
+            - Bullying
+            - Inappropriate language or themes
+            - Negative stereotypes, hate speech or discrimination
+            - Any content that may be frightening or distressing
+            - Sexually suggestive content
+            - Dangerous or illegalactivities
+            - Any references to drugs, alcohol, or adult situations
+            Write a random {story_length}, imaginative and creative {num_sentences} sentence children's story suitable for young readers. The story should have a positive tone, with a happy ending, and should encourage imagination and creativity. The story style should be {story_style}...  
 
             Please provide the response as a JSON object without any markdown elements or formatting. Format the story as a JSON object with each sentence as a separate entry in an array of sentences under the 'sentences' property. Additionally, generate a unique and creative title for the story and include it in a separate property called 'Title' in the JSON response object. DO NOT include any additional formatting or markdown.       
             Crucially, EVERY sentence must include these details:
@@ -175,6 +197,42 @@ def create_story_prompt(topic, story_length="short", story_style="adventure"):
             and so on...  Every sentence must mention ALL relevant characters and FULL scene details. Ensure no details are left out in any sentence
             """
     return prompt
+
+async def moderate_story(story_text, endpoint, key):
+    """Moderates story text using Azure Content Safety and returns specific error messages."""
+    try:
+        client = ContentSafetyClient(endpoint, AzureKeyCredential(key))
+
+        request = AnalyzeTextOptions(text=story_text)
+        response = client.analyze_text(request)
+        logging.info(f"Content Safety Response: {response}")
+
+        # Use a dictionary for easier category access and error message generation
+        categories = {
+            TextCategory.HATE: "Hate",
+            TextCategory.SELF_HARM: "Self-Harm",
+            TextCategory.SEXUAL: "Sexual",
+            TextCategory.VIOLENCE: "Violence"
+        }
+
+        error_messages = []  # Store error messages for all failing categories
+
+        for category_enum, category_name in categories.items():  # Use dictionary
+            try: # Catch StopIteration error if a category is not found.
+                category_result = next((item for item in response.categories_analysis if item.category == category_enum))
+                if category_result.severity >= 2:
+                    error_messages.append(f"Topic/Story flagged as unsafe for children due to {category_name} content. Please provide a different topic or generate a random.") 
+            except StopIteration: # Handle case where the category is not returned from ContentSafety
+                 logging.warning(f"Category {category_name} not found in Content Safety Response.")
+
+
+        if error_messages:
+            return False, "\n".join(error_messages), response # Return all error messages, and response object
+        return True, None, response # Return None for error message if story is safe.
+
+    except Exception as e:
+        logging.exception(f"Error during content moderation: {e}")
+        return False, "Error during content moderation", None # Return general error if moderation fails.
 
 def parse_story_json(story_response):
     try:
@@ -434,7 +492,10 @@ async def get_secrets() -> Config:
                 asyncio.to_thread(client.get_secret, "b2c-client-id"),
                 asyncio.to_thread(client.get_secret, "b2c-tenant"),
                 asyncio.to_thread(client.get_secret, "b2c-user-flow"),
-                asyncio.to_thread(client.get_secret, "b2c-tenant-id")
+                asyncio.to_thread(client.get_secret, "b2c-tenant-id"),
+                asyncio.to_thread(client.get_secret, "azure-content-moderator-key"),
+                asyncio.to_thread(client.get_secret, "azure-content-moderator-endpoint")
+
             )
             logging.info("Secrets successfully fetched from Key Vault") # Add logging for successful fetch.
             return Config(*(s.value for s in secrets))
@@ -452,7 +513,10 @@ async def get_secrets() -> Config:
             b2c_client_id=os.environ["REACT_APP_B2C_CLIENT_ID"],
             b2c_tenant=os.environ["REACT_APP_B2C_TENANT"],
             b2c_user_flow=os.environ["REACT_APP_B2C_USER_FLOW"],
-            b2c_tenant_id=os.environ["REACT_APP_B2C_TENANT_ID"]
+            b2c_tenant_id=os.environ["REACT_APP_B2C_TENANT_ID"],
+            content_moderator_key=os.environ["AZURE_CONTENT_MODERATOR_KEY"],
+            content_moderator_endpoint=os.environ["AZURE_CONTENT_MODERATOR_ENDPOINT"]
+
         )   
     except Exception as e:
         logging.exception(f"Error getting secrets: {e}") # Log the exception
@@ -550,7 +614,12 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
                 mimetype="application/json",
                 status_code=400
             )
-
+        
+        isTopicSafe, error_message, moderation_result = await moderate_story(topic, config.content_moderator_endpoint, config.content_moderator_key)
+        logging.info(isTopicSafe, moderation_result)
+        if not isTopicSafe:
+            return func.HttpResponse(error_message, status_code=500)
+                                
         # Get other parameters with defaults
         story_length = req.params.get('storyLength', 'short')
         if not story_length:
@@ -618,7 +687,13 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
 
         if not story:
             return func.HttpResponse("Failed to generate story", status_code=500)
+        
+        logging.info(f"Content Moderation in progress..")
+        is_safe, error_message, moderation_result = await moderate_story(story, config.content_moderator_endpoint, config.content_moderator_key) 
 
+        if not is_safe: # Check for unsafe content
+            return func.HttpResponse(error_message, status_code=500)
+                
         # Generate story title and filenames
         unique_id = str(uuid.uuid4())
         simplified_story_filename = f"{title}_{unique_id}.txt"

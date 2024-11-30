@@ -6,7 +6,7 @@ console.log('API_BASE_URL:', API_BASE_URL);
 export const getUserCredits = async (): Promise<number> => {
     const token = await getAuthToken();
     const apiUrl = `${API_BASE_URL}/api/credits`;
-    console.log('Calling API URL:', apiUrl);
+    //console.log('Calling API URL:', apiUrl);
     //console.log('Token being passed as part of the authorization header in the api call:', token);
     try {
         const response = await fetch(apiUrl, {
@@ -32,7 +32,7 @@ export const getUserCredits = async (): Promise<number> => {
         console.error('Full error:', error);
         throw error;
     }
-  };
+};
 
 export const deductCredits = async (amount: number, description: string): Promise<number> => {
   const token = await getAuthToken();
@@ -56,4 +56,44 @@ export const deductCredits = async (amount: number, description: string): Promis
 
   const data = await response.json();
   return data.credits;
+};
+
+export const purchaseCredits = async (packageId: string): Promise<string> => {
+    const token = await getAuthToken();
+    const response = await fetch(`${API_BASE_URL}/api/credits/purchase`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            'x-ms-token-aad-access-token': `Bearer ${token}`
+        },
+        body: JSON.stringify({ packageId })
+    });
+  
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to initiate purchase');
+    }
+  
+    const data = await response.json();
+    return data.sessionId;
+};
+  
+export const getTransactionHistory = async (): Promise<any[]> => {
+    const token = await getAuthToken();
+    const response = await fetch(`${API_BASE_URL}/api/credits/history`, {
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            'x-ms-token-aad-access-token': `Bearer ${token}`
+        }
+    });
+  
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to fetch transaction history');
+    }
+  
+    const data = await response.json();
+    return data.transactions;
 };

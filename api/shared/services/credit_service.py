@@ -1,7 +1,7 @@
 from datetime import datetime
 import uuid
 import logging
-from typing import Optional
+from typing import List, Optional
 from .cosmos_service import CosmosService
 from ..models.user import User
 from ..models.credit_transaction import CreditTransaction
@@ -71,3 +71,7 @@ class CreditService:
         await self.cosmos_service.create_transaction(transaction)
 
         return new_balance
+    
+    async def get_user_transactions(self, user_id: str) -> List[CreditTransaction]:
+        """Get user's transaction history"""
+        return await self.cosmos_service.get_user_transactions(user_id)

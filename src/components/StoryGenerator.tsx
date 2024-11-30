@@ -34,7 +34,7 @@ export const StoryGenerator: React.FC = () => {
   const [userCredits, setUserCredits] = useState<number | null>(null);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [showPurchaseDialog, setShowPurchaseDialog] = useState(false);
-
+  const [storyError, setStoryError] = useState<string | null>(null);
   const getRequiredCredits = (length: keyof typeof STORY_CREDIT_COSTS) => {
     return STORY_CREDIT_COSTS[length];
   };
@@ -135,6 +135,11 @@ export const StoryGenerator: React.FC = () => {
         // You might want to log this situation for administrative review
       }
     } catch (error) {
+      if (error instanceof Error && error.message.startsWith("Topic/Story flagged")) { 
+        setStoryError(error.message)
+      } else { 
+        setStoryError("An unexpected error occurred during story generation. Please try again.")
+      }
       console.error('Error:', error);
       setError(error instanceof Error ? error.message : 'An unexpected error occurred.');
     } finally {
@@ -208,6 +213,11 @@ export const StoryGenerator: React.FC = () => {
   
   return (
     <div className="max-w-4xl mx-auto p-6 pt-36">
+      {storyError ? ( 
+            <Alert severity="error" onClose={() => setStoryError(null)} className="mb-4">
+                {storyError}
+            </Alert>
+        ) : null}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold mb-6 text-white">Story Generator</h1>
         {userCredits !== null && (
