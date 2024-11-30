@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Button, TextField, MenuItem, SelectChangeEvent, FormControl, InputLabel, Select, Alert, Snackbar } from '@mui/material';
 import { Mic, MicOff } from 'lucide-react';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
@@ -43,7 +43,36 @@ export const StoryGenerator: React.FC = () => {
   title: '', 
   content: '' 
   });
+  const location = useLocation();
 
+  useEffect(() => {
+    // Check for payment-related state
+    const state = location.state as { 
+        paymentSuccess?: boolean, 
+        paymentError?: string, 
+        paymentCancelled?: boolean,
+        sessionId?: string 
+    };
+
+    if (state?.paymentSuccess) {
+        // Show success message
+        setError('Payment successful!');
+    }
+
+    if (state?.paymentError) {
+        // Show error message
+        setError(state.paymentError);
+    }
+
+    if (state?.paymentCancelled) {
+        // Show cancellation message
+        setError('Payment was cancelled');
+    }
+
+    // Optional: Clear the state to prevent showing the same message multiple times
+    window.history.replaceState({}, document.title);
+  }, [location]);
+  
   // Add this effect to fetch user credits on component mount
   useEffect(() => {
     const fetchCredits = async () => {
@@ -62,7 +91,7 @@ export const StoryGenerator: React.FC = () => {
     fetchCredits();
     }, [isAuthenticated]);
 
-  const handleGenerate = async (isRandom: boolean = false) => {
+    const handleGenerate = async (isRandom: boolean = false) => {
     if (!isAuthenticated) {
       setError('Please sign in to generate stories');
       return;

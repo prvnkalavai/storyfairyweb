@@ -1,4 +1,3 @@
-// src/components/PaymentStatus.tsx
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Alert, CircularProgress, Box } from '@mui/material';

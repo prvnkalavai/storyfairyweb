@@ -10,6 +10,8 @@ import AnimatedBackground from './components/AnimatedBackground';
 import { msalInstance } from './authConfig';
 import { InteractionType } from '@azure/msal-browser';
 import { Howl } from 'howler';
+import { PaymentStatus } from './components/PaymentStatus';
+
 
 const App: React.FC = () => {
     useEffect(() => {
@@ -43,6 +45,7 @@ const App: React.FC = () => {
                                     </MsalAuthenticationTemplate>
                                 }
                             />
+                            <Route path="/payment-status" element={<PaymentStatus />} />
                         </Routes>
                     </div>
                 </div>
