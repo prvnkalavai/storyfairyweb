@@ -33,7 +33,7 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
               status_code=400,
               mimetype="application/json"
           )
-
+      
       # Create Stripe checkout session
       session = stripe.checkout.Session.create(
           payment_method_types=['card'],
@@ -42,8 +42,8 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
               'quantity': 1,
           }],
           mode='payment',
-          success_url=f"http://localhost:3000",
-          cancel_url=f"http://localhost:3000/payment-cancelled",
+          success_url = 'http://localhost:3000' if os.getenv('ENVT') == 'Development' else 'https://www.storyfairy.app',
+          cancel_url=f"http://localhost:3000",
           client_reference_id=user_id,
           metadata={
               'user_id': user_id
