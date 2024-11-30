@@ -6,8 +6,8 @@ import stripe
 import azure.functions as func
 from ..shared.services.credit_service import CreditService
 
-stripe.api_key = os.environ.get('STRIPE_SECRET_KEY')
-webhook_secret = os.environ.get('STRIPE_WEBHOOK_SECRET')
+stripe.api_key = os.environ.get('REACT_APP_STRIPE_SECRET_KEY')
+webhook_secret = os.environ.get('REACT_APP_STRIPE_WEBHOOK_SECRET')
 
 async def main(req: func.HttpRequest) -> func.HttpResponse:
   try:

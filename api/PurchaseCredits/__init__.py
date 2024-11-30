@@ -7,7 +7,7 @@ import azure.functions as func
 from ..shared.auth.decorator import require_auth
 from ..shared.services.credit_service import CreditService
 
-stripe.api_key = os.environ.get('STRIPE_SECRET_KEY')
+stripe.api_key = os.environ.get('REACT_APP_STRIPE_SECRET_KEY')
 
 @require_auth
 async def main(req: func.HttpRequest) -> func.HttpResponse:
