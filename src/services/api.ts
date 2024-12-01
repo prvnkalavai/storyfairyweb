@@ -36,7 +36,8 @@ export const generateStory = async (
     method: 'POST',
     headers: { 
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${accessToken}`
+      'Authorization': `Bearer ${accessToken}`,
+      'x-ms-token-aad-access-token': `Bearer ${accessToken}`
     }
   });
 

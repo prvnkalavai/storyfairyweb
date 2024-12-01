@@ -18,7 +18,9 @@ import google.generativeai as genai
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import Any, Dict
+from shared.auth.decorator import require_auth
 from ..shared.auth.middleware import AuthMiddleware
+from ..shared.services.cosmos_service import CosmosService
 from azure.ai.contentsafety import ContentSafetyClient
 from azure.ai.contentsafety.models import AnalyzeTextOptions, TextCategory
 from azure.core.credentials import AzureKeyCredential
@@ -50,38 +52,38 @@ class Config:
     content_moderator_endpoint: str
 
 
-async def initialize_auth(config):
-    """Initialize the auth middleware with configuration"""
-    global auth_middleware
-    try:
-        # Get B2C configuration from environment variables
-        #tenant = os.getenv('B2C_TENANT')
-        #client_id = os.getenv('B2C_CLIENT_ID')
-        #user_flow = os.getenv('B2C_USER_FLOW')
+# async def initialize_auth(config):
+#     """Initialize the auth middleware with configuration"""
+#     global auth_middleware
+#     try:
+#         # Get B2C configuration from environment variables
+#         #tenant = os.getenv('B2C_TENANT')
+#         #client_id = os.getenv('B2C_CLIENT_ID')
+#         #user_flow = os.getenv('B2C_USER_FLOW')
         
-        tenant = config.b2c_tenant
-        client_id = config.b2c_client_id
-        user_flow = config.b2c_user_flow
-        tenant_id = config.b2c_tenant_id
+#         tenant = config.b2c_tenant
+#         client_id = config.b2c_client_id
+#         user_flow = config.b2c_user_flow
+#         tenant_id = config.b2c_tenant_id
 
         
 
-        if not all([tenant, client_id, user_flow, tenant_id]):
-            logging.error("Missing required B2C configuration")
-            raise ValueError("Missing required B2C configuration")
+#         if not all([tenant, client_id, user_flow, tenant_id]):
+#             logging.error("Missing required B2C configuration")
+#             raise ValueError("Missing required B2C configuration")
             
-        auth_middleware = AuthMiddleware(
-            tenant=tenant,
-            client_id=client_id,
-            user_flow=user_flow,
-            tenant_id=tenant_id
+#         auth_middleware = AuthMiddleware(
+#             tenant=tenant,
+#             client_id=client_id,
+#             user_flow=user_flow,
+#             tenant_id=tenant_id
         
-        )
-        logging.info("Auth middleware initialized successfully")
-        return auth_middleware
-    except Exception as e:
-        logging.error(f"Failed to initialize auth middleware: {str(e)}")
-        raise
+#         )
+#         logging.info("Auth middleware initialized successfully")
+#         return auth_middleware
+#     except Exception as e:
+#         logging.error(f"Failed to initialize auth middleware: {str(e)}")
+#         raise
 
 async def generate_story_openai(topic, api_key, story_length, story_style):
     try:
@@ -332,6 +334,97 @@ def generate_reference_image(character_description):
         logging.error(f"Error generating reference image: {e}")
         return None
 
+async def generate_cover_images(title, story_text, image_style, image_model, unique_id, config):
+    # Generate prompts for front and back covers
+    front_cover_prompt = f"Book cover illustration for children's story titled '{title}', {image_style} style, featuring the main characters of the story {story_text}, in vibrant colors, professional book cover design"
+    back_cover_prompt = f"Back cover illustration for children's story '{title}', {image_style} style, subtle and elegant design with space for text, professional book cover design"
+
+    # Generate both covers in parallel
+    async def generate_cover(prompt, is_front):
+        try:
+            if image_model == 'flux_schnell':
+                image_url, prompt_used = await generate_image_flux_schnell(prompt)
+            elif image_model == 'flux_pro':
+                image_url, prompt_used = await generate_image_flux_pro(prompt)
+            elif image_model == 'stable_diffusion_3':
+                image_url, prompt_used = await generate_image_stable_diffusion(prompt)
+            elif image_model == 'imagen_3':
+                image_url, prompt_used = await generate_image_google_imagen(prompt, config.gemini_key)
+
+            if not image_url:
+                return None
+
+            # Save to blob storage
+            async with aiohttp.ClientSession() as session:
+                async with session.get(image_url) as response:
+                    image_data = await response.read()
+                    cover_type = "front" if is_front else "back"
+                    image_filename = f"{title}_{unique_id}_{cover_type}_cover.png"
+
+                    saved_url = save_to_blob_storage(
+                        image_data, 
+                        "image/jpeg",
+                        IMAGE_CONTAINER_NAME,
+                        image_filename,
+                        config.storage_conn
+                    )
+
+                    if saved_url:
+                        sas_token = generate_sas_token(
+                            config.account_name,
+                            config.account_key,
+                            IMAGE_CONTAINER_NAME,
+                            image_filename
+                        )
+                        return {
+                            "url": f"{saved_url}?{sas_token}",
+                            "prompt": prompt_used or prompt
+                        }
+            return None
+        except Exception as e:
+            logging.error(f"Error generating {cover_type} cover: {e}")
+            return None
+
+    front_cover, back_cover = await asyncio.gather(
+        generate_cover(front_cover_prompt, True),
+        generate_cover(back_cover_prompt, False)
+    )
+
+    return {
+        "frontCover": front_cover,
+        "backCover": back_cover
+    }
+
+async def save_story_to_cosmos(story_data, user_id):
+    try:
+        cosmos_service = CosmosService()  # Assuming you have this service
+        story_doc = {
+            "id": str(uuid.uuid4()),
+            "userId": user_id,
+            "title": story_data["title"],
+            "storyText": story_data["StoryText"],
+            "detailedStoryText": story_data.get("detailedStoryText", ""),
+            "images": story_data["images"],
+            "coverImages": story_data["coverImages"],
+            "createdAt": datetime.utcnow().isoformat(),
+            "metadata": {
+                "topic": story_data.get("topic", ""),
+                "storyLength": story_data.get("storyLength", "short"),
+                "imageStyle": story_data.get("imageStyle", "whimsical"),
+                "storyModel": story_data.get("storyModel", "gemini"),
+                "imageModel": story_data.get("imageModel", "flux_schnell"),
+                "storyStyle": story_data.get("storyStyle", "adventure"),
+                "voiceName": story_data.get("voiceName", "en-US-AvaNeural"),
+                "creditsUsed": story_data.get("creditsUsed", 1)
+            }
+        }
+
+        await cosmos_service.create_story(story_doc)
+        return story_doc["id"]
+    except Exception as e:
+        logging.error(f"Error saving story to Cosmos DB: {e}")
+        raise
+
 async def generate_image_stable_diffusion(prompt,reference_image_url=None):
     input_params = {
         "cfg": 7,
@@ -573,22 +666,35 @@ async def generate_images_parallel(sentences, story_title, image_style, connecti
                 ordered_results[i] = result
         return [result for result in ordered_results if result is not None]
 
+@require_auth
 async def main(req: func.HttpRequest) -> func.HttpResponse:
     try:
+        # Get user ID from auth claims
+        claims = getattr(req, 'auth_claims')
+        user_id = claims.get('sub') or claims.get('oid') or claims.get('name')
+
+        if not user_id:
+            return func.HttpResponse(
+                json.dumps({"error": "User not authenticated"}),
+                status_code=401,
+                mimetype="application/json"
+            )  
+
         # Get secrets (existing code)
         config = await get_secrets()
 
         # Initialize auth middleware if not already done
-        global auth_middleware
-        if auth_middleware is None:
-            auth_middleware = await initialize_auth(config)
-            if auth_middleware is None:
-                return HttpResponse(
-                    json.dumps({"error": "Failed to initialize authentication middleware"}),
-                    mimetype="application/json",
-                    status_code=500
-                )
-            
+        # global auth_middleware
+        # if auth_middleware is None:
+        #     auth_middleware = await initialize_auth(config)
+        #     if auth_middleware is None:
+        #         return HttpResponse(
+        #             json.dumps({"error": "Failed to initialize authentication middleware"}),
+        #             mimetype="application/json",
+        #             status_code=500
+        #         )
+         
+        
         openai.api_key = config.openai_key
         os.environ["REPLICATE_API_TOKEN"] = config.replicate_token
 
@@ -758,6 +864,11 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
                 status_code=400
             ) 
 
+        # Generate cover images
+        cover_images = await generate_cover_images(title, story, image_style, image_model, unique_id, config )
+
+        storyLength = { "short": 5, "medium": 7, "long": 9, "epic": 12, "saga": 15}
+        creditsUsed = storyLength.get(story_length, 5)
         # Prepare response
         response_data = {
             "title": title,
@@ -765,10 +876,23 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
             "storyUrl": simplified_story_url,
             "detailedStoryUrl": detailed_story_url,
             "images": image_results,
+            "coverImages": cover_images,
             "imageContainerName": IMAGE_CONTAINER_NAME,
             "blobStorageConnectionString": config.storage_conn,
-            "voiceName":voice_name
+            "voiceName":voice_name,
+            "metadata": {
+                "topic": topic,
+                "storyLength": story_length,
+                "imageStyle": image_style,
+                "storyModel": story_model,
+                "imageModel": image_model,
+                "storyStyle": story_style,
+                "creditsUsed": creditsUsed
+            }
         }
+
+        story_id = await save_story_to_cosmos(response_data, user_id)
+        response_data["Id"] = story_id
 
         return func.HttpResponse(
             json.dumps(response_data, default=str),
