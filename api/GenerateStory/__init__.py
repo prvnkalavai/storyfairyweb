@@ -466,7 +466,7 @@ async def generate_image_flux_schnell(prompt):
                 input={
                     "prompt": prompt,
                     "aspect_ratio": "1:1",
-                    "go_fast": True,
+                    "go_fast": False,
                     "megapixels": "1",
                     "num_outputs": 1,
                     "output_quality": 100,

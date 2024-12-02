@@ -5,6 +5,8 @@ export interface Story {
     title: string;
     storyText: string;
     detailedStoryText: string;
+    storyUrl: string;
+    detailedStoryUrl: string;
     images: {
       url: string;
       prompt: string;
