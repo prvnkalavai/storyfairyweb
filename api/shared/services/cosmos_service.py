@@ -97,7 +97,9 @@ class CosmosService:
                 "userId": story_data["userId"],
                 "title": story_data["title"],
                 "storyText": story_data["storyText"],
-                "detailedStoryText": story_data.get("detailedStoryText", ""),
+                "detailedStoryText": story_data.get("detailedStoryText"),
+                "storyUrl": story_data["storyUrl"],
+                "detailedStoryUrl": story_data["detailedStoryUrl"],
                 "images": story_data["images"],
                 "coverImages": story_data["coverImages"],
                 "createdAt": datetime.utcnow().isoformat(),
@@ -109,7 +111,7 @@ class CosmosService:
                     "imageModel": story_data.get("imageModel", "flux_schnell"),
                     "storyStyle": story_data.get("storyStyle", "adventure"),
                     "voiceName": story_data.get("voiceName", "en-US-AvaNeural"),
-                    "creditsUsed": story_data.get("creditsUsed", 1)
+                    "creditsUsed": story_data.get("creditsUsed", 5)
                 }
             }
 

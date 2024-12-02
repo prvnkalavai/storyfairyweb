@@ -403,7 +403,9 @@ async def save_story_to_cosmos(story_data, user_id):
             "userId": user_id,
             "title": story_data["title"],
             "storyText": story_data["StoryText"],
-            "detailedStoryText": story_data.get("detailedStoryText", ""),
+            "detailedStoryText": story_data.get("detailedStoryText"),
+            "storyUrl": story_data["storyUrl"],
+            "detailedStoryUrl": story_data["detailedStoryUrl"],
             "images": story_data["images"],
             "coverImages": story_data["coverImages"],
             "createdAt": datetime.utcnow().isoformat(),
@@ -415,7 +417,7 @@ async def save_story_to_cosmos(story_data, user_id):
                 "imageModel": story_data.get("imageModel", "flux_schnell"),
                 "storyStyle": story_data.get("storyStyle", "adventure"),
                 "voiceName": story_data.get("voiceName", "en-US-AvaNeural"),
-                "creditsUsed": story_data.get("creditsUsed", 1)
+                "creditsUsed": story_data.get("creditsUsed", 5)
             }
         }
 
@@ -869,10 +871,14 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
 
         storyLength = { "short": 5, "medium": 7, "long": 9, "epic": 12, "saga": 15}
         creditsUsed = storyLength.get(story_length, 5)
+        logging.info(f"Credits used: {creditsUsed}")
+        logging.info(f"topic: {topic}")
+
         # Prepare response
         response_data = {
             "title": title,
             "StoryText": simplified_story,
+            "detailedStoryText": story,
             "storyUrl": simplified_story_url,
             "detailedStoryUrl": detailed_story_url,
             "images": image_results,

@@ -8,7 +8,6 @@ export interface Story {
     images: {
       url: string;
       prompt: string;
-      index: number;
     }[];
     coverImages: {
       frontCover: {
