@@ -11,7 +11,7 @@ import { msalInstance } from './authConfig';
 import { InteractionType } from '@azure/msal-browser';
 import { Howl } from 'howler';
 import { PaymentStatus } from './components/PaymentStatus';
-
+import { MyStories } from './pages/MyStoriesPage';
 
 const App: React.FC = () => {
     useEffect(() => {
@@ -46,6 +46,18 @@ const App: React.FC = () => {
                                 }
                             />
                             <Route path="/payment-status" element={<PaymentStatus />} />
+                            
+                            <Route
+                                path="/mystories"
+                                element={
+                                    <MsalAuthenticationTemplate
+                                        interactionType={InteractionType.Redirect}
+                                        authenticationRequest={{ scopes: [] }}
+                                    >
+                                        <MyStories/>
+                                    </MsalAuthenticationTemplate>
+                                }
+                            />
                         </Routes>
                     </div>
                 </div>

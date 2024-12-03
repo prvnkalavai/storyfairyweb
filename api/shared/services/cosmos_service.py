@@ -121,7 +121,7 @@ class CosmosService:
             logging.error(f"Error creating story in Cosmos DB: {e}")
             raise
 
-    async def get_user_stories(self, user_id: str, page_size: int = 10, continuation_token: Optional[str] = None) -> Dict[str, Any]:
+    async def get_user_stories(self, user_id: str, page_size: int = 10) -> Dict[str, Any]:
         """
         Get paginated stories for a specific user
         """
@@ -138,15 +138,13 @@ class CosmosService:
                 query=query,
                 parameters=parameters,
                 enable_cross_partition_query=True,
-                max_item_count=page_size,
-                continuation_token=continuation_token
+                max_item_count=page_size
             )
 
             items = list(query_response)
 
             return {
-                "stories": items,
-                "continuation_token": query_response.continuation_token
+                "stories": items
             }
         except Exception as e:
             logging.error(f"Error fetching user stories from Cosmos DB: {e}")

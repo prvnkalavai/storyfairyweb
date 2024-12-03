@@ -397,7 +397,40 @@ async def generate_cover_images(title, story_text, image_style, image_model, uni
 
 async def save_story_to_cosmos(story_data, user_id):
     try:
-        cosmos_service = CosmosService()  # Assuming you have this service
+        cosmos_service = CosmosService()
+
+        # Function to remove SAS token from URL
+        def remove_sas_token(url):
+            if url and '?' in url:
+                return url.split('?')[0]
+            return url
+
+        # Clean image URLs before saving
+        cleaned_images = []
+        if story_data.get("images"):
+            for image in story_data["images"]:
+                if image and isinstance(image, dict):
+                    cleaned_image = {
+                        "imageUrl": remove_sas_token(image.get("imageUrl")),
+                        "prompt": image.get("prompt")
+                    }
+                    cleaned_images.append(cleaned_image)
+
+        # Clean cover image URLs
+        cleaned_cover_images = {}
+        if story_data.get("coverImages"):
+            cover_images = story_data["coverImages"]
+            if cover_images.get("frontCover"):
+                cleaned_cover_images["frontCover"] = {
+                    "url": remove_sas_token(cover_images["frontCover"].get("url")),
+                    "prompt": cover_images["frontCover"].get("prompt")
+                }
+            if cover_images.get("backCover"):
+                cleaned_cover_images["backCover"] = {
+                    "url": remove_sas_token(cover_images["backCover"].get("url")),
+                    "prompt": cover_images["backCover"].get("prompt")
+                }
+
         story_doc = {
             "id": str(uuid.uuid4()),
             "userId": user_id,
@@ -406,8 +439,8 @@ async def save_story_to_cosmos(story_data, user_id):
             "detailedStoryText": story_data.get("detailedStoryText"),
             "storyUrl": story_data["storyUrl"],
             "detailedStoryUrl": story_data["detailedStoryUrl"],
-            "images": story_data["images"],
-            "coverImages": story_data["coverImages"],
+            "images": cleaned_images,
+            "coverImages": cleaned_cover_images,
             "createdAt": datetime.utcnow().isoformat(),
             "metadata": {
                 "topic": story_data.get("topic", ""),
@@ -561,7 +594,6 @@ def generate_sas_token(account_name, account_key, container_name, blob_name, api
         expiry=expiry_time.astimezone(pytz.utc), 
         version=api_version,  
     )
-
     return sas_token
 
 def construct_detailed_prompt(sentence, image_style="whimsical"):

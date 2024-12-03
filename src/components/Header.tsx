@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { useMsal, useIsAuthenticated } from '@azure/msal-react';
 import { Button } from '@mui/material';
 import { loginRequest } from '../authConfig';
@@ -45,6 +46,12 @@ export const Header: React.FC = () => {
       <div className="max-w-3xl mx-auto flex justify-between items-center px-4">
         <img src="./Storyfairy-logo2.png" alt="Logo" className="h-36 w-auto" />
         <div className="flex items-center gap-4">
+          <Link
+            to="/mystories"
+            className="text-white hover:text-gray-300 px-3 py-2 rounded-md text-sm font-medium"
+          >
+          My Stories
+          </Link>
           {isAuthenticated ? (
             <div className="flex items-center gap-4">
               <span className="text-gray-700">

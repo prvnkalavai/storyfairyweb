@@ -1,4 +1,9 @@
 import { StoryData } from "../types";
+import { getAuthToken } from '../utils/auth';
+
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+console.log('API_BASE_URL:', API_BASE_URL);
+
 
 export const generateStory = async (
   topic: string,
@@ -49,6 +54,49 @@ export const generateStory = async (
     } catch(jsonError) {
       throw new Error(errorText || response.statusText);
     }
+  }
+
+  return response.json();
+};
+
+
+// Add these functions to src/services/api.ts
+
+export const getUserStories = async (filters: any) => {
+  const token = await getAuthToken();
+  const queryParams = new URLSearchParams({
+    ...filters,
+    dateRange: filters.dateRange ? JSON.stringify(filters.dateRange) : ''
+  }).toString();
+  console.log("calling api/stories from api.ts")
+  const response = await fetch(`${API_BASE_URL}/api/stories?${queryParams}`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      'x-ms-token-aad-access-token': `Bearer ${token}`
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch stories');
+  }
+
+  return response.json();
+};
+
+export const deleteStory = async (storyId: string) => {
+  const token = await getAuthToken();
+  const response = await fetch(`${API_BASE_URL}/api/stories/${storyId}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      'x-ms-token-aad-access-token': `Bearer ${token}`
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to delete story');
   }
 
   return response.json();
