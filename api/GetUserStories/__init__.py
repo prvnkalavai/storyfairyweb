@@ -4,7 +4,7 @@ import azure.functions as func
 from ..shared.auth.decorator import require_auth
 from ..shared.services.cosmos_service import CosmosService
 from azure.storage.blob import generate_blob_sas, BlobSasPermissions, __version__
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 import os
 import pytz
 
