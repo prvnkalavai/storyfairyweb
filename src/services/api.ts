@@ -68,7 +68,6 @@ export const getUserStories = async (filters: any) => {
     ...filters,
     dateRange: filters.dateRange ? JSON.stringify(filters.dateRange) : ''
   }).toString();
-  console.log("calling api/stories from api.ts")
   const response = await fetch(`${API_BASE_URL}/api/stories?${queryParams}`, {
     headers: {
       'Authorization': `Bearer ${token}`,

@@ -1,8 +1,8 @@
-# api/DeleteStory/__init__.py
 import logging
 import json
 import azure.functions as func
 from azure.storage.blob import BlobServiceClient
+from azure.identity import DefaultAzureCredential
 import os
 from ..shared.auth.decorator import require_auth
 from ..shared.services.cosmos_service import CosmosService
@@ -51,19 +51,20 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
                 mimetype="application/json"
             )
 
-        # Delete associated blobs
+        # Delete associated blobs using managed identity
         try:
-            blob_service_client = BlobServiceClient.from_connection_string(
-                os.environ["STORAGE_CONNECTION_STRING"]
-            )
+            account_name = os.environ["ACCOUNT_NAME"]
+            blob_service_url = f"https://{account_name}.blob.core.windows.net"
+            credential = DefaultAzureCredential()
+            blob_service_client = BlobServiceClient(blob_service_url, credential=credential)
 
             # Delete story text blobs
             story_container = blob_service_client.get_container_client("storyfairy-stories")
             if story.get("storyUrl"):
-                story_blob_name = story["storyUrl"].split("/")[-1]
+                story_blob_name = story["storyUrl"].split("/")[-1].split("?")[0]
                 story_container.delete_blob(story_blob_name)
             if story.get("detailedStoryUrl"):
-                detailed_story_blob_name = story["detailedStoryUrl"].split("/")[-1]
+                detailed_story_blob_name = story["detailedStoryUrl"].split("/")[-1].split("?")[0]
                 story_container.delete_blob(detailed_story_blob_name)
 
             # Delete image blobs
