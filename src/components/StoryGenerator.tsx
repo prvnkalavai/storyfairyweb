@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { Howl } from 'howler';
+import { Music, Volume2 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Button, TextField, MenuItem, SelectChangeEvent, FormControl, InputLabel, Select, Alert, Snackbar } from '@mui/material';
 import { Mic, MicOff } from 'lucide-react';
@@ -44,6 +46,37 @@ export const StoryGenerator: React.FC = () => {
   content: '' 
   });
   const location = useLocation();
+  const [musicPlayer, setMusicPlayer] = useState<Howl | null>(null);
+  const [isMusicPlaying, setIsMusicPlaying] = useState(false);
+
+  useEffect(() => {
+    // Initialize music player on component mount
+    const sound = new Howl({
+      src: ["./sounds/ForestLullabye_AsherFulero.mp3"],
+      loop: true,
+      volume: 0.1,
+    });
+  
+    setMusicPlayer(sound);
+  
+    // Cleanup function to stop music when component unmounts
+    return () => {
+      sound.stop();
+      sound.unload();
+    };
+  }, []);
+  
+  const toggleMusic = () => {
+    if (musicPlayer) {
+      if (isMusicPlaying) {
+        musicPlayer.pause();
+        setIsMusicPlaying(false);
+      } else {
+        musicPlayer.play();
+        setIsMusicPlaying(true);
+      }
+    }
+  };
 
   useEffect(() => {
     // Check for payment-related state
@@ -241,243 +274,309 @@ export const StoryGenerator: React.FC = () => {
   const isButtonDisabled = !isAuthenticated || isLoading || inProgress !== InteractionStatus.None;
   
   return (
-    <div className="max-w-4xl mx-auto p-6 pt-36">
-      {storyError ? ( 
-            <Alert severity="error" onClose={() => setStoryError(null)} className="mb-4">
-                {storyError}
-            </Alert>
-        ) : null}
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold mb-6 text-white">Story Generator</h1>
-        {userCredits !== null && (
-          <div className="bg-white/80 px-4 py-2 rounded-full">
-            <span className="font-medium">Credits: {userCredits}</span>
-          </div>
+  <div className="max-w-4xl mx-auto p-6 pt-36">
+  {storyError ? (
+    <Alert
+      severity="error"
+      onClose={() => setStoryError(null)}
+      className="mb-4"
+    >
+      {storyError}
+    </Alert>
+  ) : null}
+  <div className="flex justify-between items-center mb-6">
+    <h1 className="text-3xl font-bold mb-6 text-white">Story Generator</h1>
+    <div className="flex items-center space-x-4">
+      <button
+        onClick={toggleMusic}
+        className={`
+              relative w-12 h-12 flex items-center justify-center 
+              transform transition-all duration-300 ease-in-out
+              ${
+                isMusicPlaying
+                  ? "animate-pulse text-yellow-400"
+                  : "text-gray-500 hover:text-yellow-500"
+              }
+            `}
+        title={isMusicPlaying ? "Pause Music" : "Play Music"}
+      >
+        {isMusicPlaying ? (
+          <Music className="z-10 w-7 h-7" />
+        ) : (
+          <Volume2 className="z-10 w-7 h-7" />
         )}
-      </div>
-    
-      <div className="p-6 bg-white/60 backdrop-blur-sm rounded-lg shadow-lg"> 
-      <div className="flex items-center">
+      </button>
+
+      {userCredits !== null && (
+        <div className="bg-white/80 px-4 py-2 rounded-full">
+          <span className="font-medium">Credits: {userCredits}</span>
+        </div>
+      )}
+    </div>
+  </div>
+
+  <div className="p-6 bg-white/60 backdrop-blur-sm rounded-lg shadow-lg">
+    <div className="flex items-center">
       <TextField
-            label="Topic (Optional)"
-            value={topic}
-            onChange={(e) => setTopic(e.target.value)}
-            fullWidth
-            margin="normal"
-            placeholder="Enter a topic or use voice input"
-          />
-          <Button
-            onClick={toggleListening}
-            className="ml-2 min-w-[48px] h-14"
-            color={isListening ? "secondary" : "primary"}
-            disabled={!!speechError}
-            title={speechError || 'Toggle voice input'}
-          >
-            {isListening ? <MicOff className="h-6 w-6" /> : <Mic className="h-6 w-6" />}
-          </Button>
-          <IconButton 
-          onClick={() => handleHelpClick('topic')} 
-          size="small"
-          sx={{ 
-            position: 'absolute', 
-            right: -6, 
-            top: '10%', 
-            transform: 'translateY(-50%)',
-            color: 'primary.main'
-          }}
-        >
-        <InfoIcon fontSize="small" />
-        </IconButton>
-      </div>
-
-      <FormControl fullWidth margin="normal">
-        <InputLabel id="story-length-label">Story Length</InputLabel>
-        <Select
-          labelId="story-length-label"
-          id="story-length"
-          value={storyLength}
-          label="Story Length"
-          onChange={(e: SelectChangeEvent<"short" | "medium" | "long" | "epic" | "saga">) => setStoryLength(e.target.value as "short" | "medium" | "long" | "epic" | "saga")}
-        >
-          {Object.entries(STORY_LENGTHS).map(([key, value]) => (
-            <MenuItem key={value} value={value}>
-              {key.charAt(0) + key.slice(1).toLowerCase()}
-              ({STORY_CREDIT_COSTS[key as keyof typeof STORY_CREDIT_COSTS]} credits)
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
-      <FormControl fullWidth margin="normal">
-        <InputLabel id="image-style-label">Image Style</InputLabel>
-        <Select
-          labelId="image-style-label"
-          id="image-style"
-          value={imageStyle}
-          label="Image Style"
-          onChange={(e: SelectChangeEvent<"whimsical">) => setImageStyle(e.target.value as "whimsical")}
-        >
-          {Object.entries(IMAGE_STYLES).map(([key, value]) => (
-            <MenuItem key={value} value={value}>
-              {key.charAt(0) + key.slice(1).toLowerCase()}
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>      
-      <FormControl fullWidth margin="normal">
-        <InputLabel id="story-model-label">Story Model</InputLabel>
-        <Select
-          labelId="story-model-label"
-          id="story-model"
-          value={storyModel}
-          label="Story Model"
-          onChange={(e: SelectChangeEvent<"gemini">) => setStoryModel(e.target.value as "gemini")}
-        >
-          {Object.entries(STORY_MODELS).map(([key, value]) => (
-            <MenuItem key={value} value={value}>
-              {key 
-              .split('_')  
-              .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()) 
-              .join('_')  
-              }
-            </MenuItem>
-          ))}
-        </Select>
-        <IconButton 
-          onClick={() => handleHelpClick('story')} 
-          size="small"
-          sx={{ 
-            position: 'absolute', 
-            right: -30, 
-            top: '50%', 
-            transform: 'translateY(-50%)',
-            color: 'primary.main'
-          }}
-        >
-        <InfoIcon fontSize="small" />
-        </IconButton>
-      </FormControl>
-      <FormControl fullWidth margin="normal">
-        <InputLabel id="image-model-label">Image Model</InputLabel>
-        <Select
-          labelId="image-model-label"
-          id="image-model"
-          value={imageModel}
-          label="Image Model"
-          onChange={(e: SelectChangeEvent<"flux_schnell">) => setImageModel(e.target.value as "flux_schnell")}
-        >
-          {Object.entries(IMAGE_MODELS).map(([key, value]) => (
-            <MenuItem key={value} value={value}>
-              {key 
-              .split('_')  
-              .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()) 
-              .join('_')  
-              }
-            </MenuItem>
-          ))}
-        </Select>
-        <IconButton 
-          onClick={() => handleHelpClick('image')} 
-          size="small"
-          sx={{ 
-            position: 'absolute', 
-            right: -30, 
-            top: '50%', 
-            transform: 'translateY(-50%)',
-            color: 'primary.main'
-          }}
-        >
-        <InfoIcon fontSize="small" />
-        </IconButton>
-      </FormControl>
-      <FormControl fullWidth margin="normal">
-        <InputLabel id="story-style-label">Story Style</InputLabel>
-        <Select
-          labelId="story-style-label"
-          id="story-style"
-          value={storyStyle}
-          label="story Style"
-          onChange={(e: SelectChangeEvent<"adventure">) => setStoryStyle(e.target.value as "adventure")}
-        >
-          {Object.entries(STORY_STYLES).map(([key, value]) => (
-            <MenuItem key={value} value={value}>
-              {key 
-              .split('_')  
-              .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()) 
-              .join('_')  
-              }
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
-      <FormControl fullWidth margin="normal">
-        <InputLabel id="voice-name-label">Voice Name</InputLabel>
-        <Select
-          labelId="voice-name-label"
-          id="voice-name"
-          value={voiceName}
-          label="voice Name"
-          onChange={(e: SelectChangeEvent) => setVoiceName(e.target.value as typeof VOICES[keyof typeof VOICES])}
-        >
-          {Object.entries(VOICES).map(([key, value]) => (
-            <MenuItem key={value} value={value}>
-              {key 
-                .split('_')  
-                .map(word => word.charAt(0).toUpperCase() + word.slice(1)) 
-                .join(' ')  
-              }
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
-      
-      <div className="mt-6 flex gap-4">
-        <Button 
-          variant="contained" 
-          color="primary" 
-          onClick={() => handleGenerate(false)} 
-          disabled={isButtonDisabled}
-          fullWidth
-        >
-          {isLoading ? 'Generating...' : `Generate Story (${getRequiredCredits(storyLength.toUpperCase() as keyof typeof STORY_CREDIT_COSTS)} credits)`}
-        </Button>
-        <Button 
-          variant="outlined" 
-          color="secondary" 
-          onClick={handleRandomStory} 
-          disabled={isButtonDisabled}
-          fullWidth
-        >
-          {`Random Story (${getRequiredCredits(storyLength.toUpperCase() as keyof typeof STORY_CREDIT_COSTS)} credits)`}
-        </Button>
-      </div>
-      </div>
-      <ConfirmationDialog
-        open={showConfirmDialog}
-        creditsNeeded={getRequiredCredits(storyLength.toUpperCase() as keyof typeof STORY_CREDIT_COSTS)}
-        onConfirm={handleConfirmGeneration}
-        onClose={() => setShowConfirmDialog(false)}
+        label="Topic (Optional)"
+        value={topic}
+        onChange={(e) => setTopic(e.target.value)}
+        fullWidth
+        margin="normal"
+        placeholder="Enter a topic or use voice input"
       />
+      <Button
+        onClick={toggleListening}
+        className="ml-2 min-w-[48px] h-14"
+        color={isListening ? "secondary" : "primary"}
+        disabled={!!speechError}
+        title={speechError || "Toggle voice input"}
+      >
+        {isListening ? (
+          <MicOff className="h-6 w-6" />
+        ) : (
+          <Mic className="h-6 w-6" />
+        )}
+      </Button>
+      <IconButton
+        onClick={() => handleHelpClick("topic")}
+        size="small"
+        sx={{
+          position: "absolute",
+          right: -6,
+          top: "10%",
+          transform: "translateY(-50%)",
+          color: "primary.main",
+        }}
+      >
+        <InfoIcon fontSize="small" />
+      </IconButton>
+    </div>
 
-      <PurchaseDialog
-        open={showPurchaseDialog}
-        onClose={() => setShowPurchaseDialog(false)}
-        onPurchase={handlePurchaseCredits}
-        currentCredits={userCredits ?? 0}
-        creditsNeeded={getRequiredCredits(storyLength.toUpperCase() as keyof typeof STORY_CREDIT_COSTS)}
-        packages={CREDIT_PACKAGES}
-      />
-    
-    <Snackbar open={!!error || !!speechError} autoHideDuration={6000} onClose={() => setError(null)}>
+    <FormControl fullWidth margin="normal">
+      <InputLabel id="story-length-label">Story Length</InputLabel>
+      <Select
+        labelId="story-length-label"
+        id="story-length"
+        value={storyLength}
+        label="Story Length"
+        onChange={(
+          e: SelectChangeEvent<"short" | "medium" | "long" | "epic" | "saga">
+        ) =>
+          setStoryLength(
+            e.target.value as "short" | "medium" | "long" | "epic" | "saga"
+          )
+        }
+      >
+        {Object.entries(STORY_LENGTHS).map(([key, value]) => (
+          <MenuItem key={value} value={value}>
+            {key.charAt(0) + key.slice(1).toLowerCase()}(
+            {STORY_CREDIT_COSTS[key as keyof typeof STORY_CREDIT_COSTS]}{" "}
+            credits)
+          </MenuItem>
+        ))}
+      </Select>
+    </FormControl>
+    <FormControl fullWidth margin="normal">
+      <InputLabel id="image-style-label">Image Style</InputLabel>
+      <Select
+        labelId="image-style-label"
+        id="image-style"
+        value={imageStyle}
+        label="Image Style"
+        onChange={(e: SelectChangeEvent<"whimsical">) =>
+          setImageStyle(e.target.value as "whimsical")
+        }
+      >
+        {Object.entries(IMAGE_STYLES).map(([key, value]) => (
+          <MenuItem key={value} value={value}>
+            {key.charAt(0) + key.slice(1).toLowerCase()}
+          </MenuItem>
+        ))}
+      </Select>
+    </FormControl>
+    <FormControl fullWidth margin="normal">
+      <InputLabel id="story-model-label">Story Model</InputLabel>
+      <Select
+        labelId="story-model-label"
+        id="story-model"
+        value={storyModel}
+        label="Story Model"
+        onChange={(e: SelectChangeEvent<"gemini">) =>
+          setStoryModel(e.target.value as "gemini")
+        }
+      >
+        {Object.entries(STORY_MODELS).map(([key, value]) => (
+          <MenuItem key={value} value={value}>
+            {key
+              .split("_")
+              .map(
+                (word) =>
+                  word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+              )
+              .join("_")}
+          </MenuItem>
+        ))}
+      </Select>
+      <IconButton
+        onClick={() => handleHelpClick("story")}
+        size="small"
+        sx={{
+          position: "absolute",
+          right: -30,
+          top: "50%",
+          transform: "translateY(-50%)",
+          color: "primary.main",
+        }}
+      >
+        <InfoIcon fontSize="small" />
+      </IconButton>
+    </FormControl>
+    <FormControl fullWidth margin="normal">
+      <InputLabel id="image-model-label">Image Model</InputLabel>
+      <Select
+        labelId="image-model-label"
+        id="image-model"
+        value={imageModel}
+        label="Image Model"
+        onChange={(e: SelectChangeEvent<"flux_schnell">) =>
+          setImageModel(e.target.value as "flux_schnell")
+        }
+      >
+        {Object.entries(IMAGE_MODELS).map(([key, value]) => (
+          <MenuItem key={value} value={value}>
+            {key
+              .split("_")
+              .map(
+                (word) =>
+                  word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+              )
+              .join("_")}
+          </MenuItem>
+        ))}
+      </Select>
+      <IconButton
+        onClick={() => handleHelpClick("image")}
+        size="small"
+        sx={{
+          position: "absolute",
+          right: -30,
+          top: "50%",
+          transform: "translateY(-50%)",
+          color: "primary.main",
+        }}
+      >
+        <InfoIcon fontSize="small" />
+      </IconButton>
+    </FormControl>
+    <FormControl fullWidth margin="normal">
+      <InputLabel id="story-style-label">Story Style</InputLabel>
+      <Select
+        labelId="story-style-label"
+        id="story-style"
+        value={storyStyle}
+        label="story Style"
+        onChange={(e: SelectChangeEvent<"adventure">) =>
+          setStoryStyle(e.target.value as "adventure")
+        }
+      >
+        {Object.entries(STORY_STYLES).map(([key, value]) => (
+          <MenuItem key={value} value={value}>
+            {key
+              .split("_")
+              .map(
+                (word) =>
+                  word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+              )
+              .join("_")}
+          </MenuItem>
+        ))}
+      </Select>
+    </FormControl>
+    <FormControl fullWidth margin="normal">
+      <InputLabel id="voice-name-label">Voice Name</InputLabel>
+      <Select
+        labelId="voice-name-label"
+        id="voice-name"
+        value={voiceName}
+        label="voice Name"
+        onChange={(e: SelectChangeEvent) =>
+          setVoiceName(e.target.value as typeof VOICES[keyof typeof VOICES])
+        }
+      >
+        {Object.entries(VOICES).map(([key, value]) => (
+          <MenuItem key={value} value={value}>
+            {key
+              .split("_")
+              .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+              .join(" ")}
+          </MenuItem>
+        ))}
+      </Select>
+    </FormControl>
+
+    <div className="mt-6 flex gap-4">
+      <Button
+        variant="contained"
+        color="primary"
+        onClick={() => handleGenerate(false)}
+        disabled={isButtonDisabled}
+        fullWidth
+      >
+        {isLoading
+          ? "Generating..."
+          : `Generate Story (${getRequiredCredits(
+              storyLength.toUpperCase() as keyof typeof STORY_CREDIT_COSTS
+            )} credits)`}
+      </Button>
+      <Button
+        variant="outlined"
+        color="secondary"
+        onClick={handleRandomStory}
+        disabled={isButtonDisabled}
+        fullWidth
+      >
+        {`Random Story (${getRequiredCredits(
+          storyLength.toUpperCase() as keyof typeof STORY_CREDIT_COSTS
+        )} credits)`}
+      </Button>
+    </div>
+  </div>
+  <ConfirmationDialog
+    open={showConfirmDialog}
+    creditsNeeded={getRequiredCredits(
+      storyLength.toUpperCase() as keyof typeof STORY_CREDIT_COSTS
+    )}
+    onConfirm={handleConfirmGeneration}
+    onClose={() => setShowConfirmDialog(false)}
+  />
+
+  <PurchaseDialog
+    open={showPurchaseDialog}
+    onClose={() => setShowPurchaseDialog(false)}
+    onPurchase={handlePurchaseCredits}
+    currentCredits={userCredits ?? 0}
+    creditsNeeded={getRequiredCredits(
+      storyLength.toUpperCase() as keyof typeof STORY_CREDIT_COSTS
+    )}
+    packages={CREDIT_PACKAGES}
+  />
+
+  <Snackbar
+    open={!!error || !!speechError}
+    autoHideDuration={6000}
+    onClose={() => setError(null)}
+  >
     <Alert severity="error" onClose={() => setError(null)}>
       {error || speechError}
     </Alert>
   </Snackbar>
   <HelpDialog
-  open={openHelpDialog}
-  onClose={() => setOpenHelpDialog(false)}
-  title={dialogContent.title}
-  content={dialogContent.content}
-/>
-</div>
+    open={openHelpDialog}
+    onClose={() => setOpenHelpDialog(false)}
+    title={dialogContent.title}
+    content={dialogContent.content}
+  />
+  </div>
   );
 };

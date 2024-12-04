@@ -59,25 +59,23 @@ export const generateStory = async (
   return response.json();
 };
 
-
-// Add these functions to src/services/api.ts
-
 export const getUserStories = async (filters: any) => {
   const token = await getAuthToken();
   const queryParams = new URLSearchParams({
-    ...filters,
-    dateRange: filters.dateRange ? JSON.stringify(filters.dateRange) : ''
+      ...filters,
+      dateRange: filters.dateRange ? JSON.stringify(filters.dateRange) : ''
   }).toString();
+
   const response = await fetch(`${API_BASE_URL}/api/stories?${queryParams}`, {
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json',
-      'x-ms-token-aad-access-token': `Bearer ${token}`
-    }
+      headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'x-ms-token-aad-access-token': `Bearer ${token}`
+      }
   });
 
   if (!response.ok) {
-    throw new Error('Failed to fetch stories');
+      throw new Error('Failed to fetch stories');
   }
 
   return response.json();

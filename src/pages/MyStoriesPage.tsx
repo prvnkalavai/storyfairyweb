@@ -1,11 +1,12 @@
 // src/pages/MyStories.tsx
 import React, { useState, useEffect, useCallback } from 'react';
-import { Alert, CircularProgress } from '@mui/material';
+import { Alert, CircularProgress, Button } from '@mui/material';
 import { StoryGrid } from '../components/MyStories/StoryGrid';
 import { StoryFilters } from '../components/MyStories/StoryFilters';
 import { Story } from '../types/story';
 import { getUserStories } from '../services/api';
 import { Dayjs } from 'dayjs';
+import { useNavigate } from 'react-router-dom';
 
 export const MyStories: React.FC = () => {
   const [stories, setStories] = useState<Story[]>([]);
@@ -18,6 +19,7 @@ export const MyStories: React.FC = () => {
     sortBy: 'createdAt',
     sortOrder: 'desc' as 'asc' | 'desc'
   });
+  const navigate = useNavigate();
 
   
   const fetchStories = useCallback(async () => {
@@ -53,7 +55,10 @@ export const MyStories: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pt-40">
-      <h1 className="text-3xl font-bold text-white mb-8">My Stories</h1>
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold text-white">My Stories</h1>
+        <Button variant="contained" color="primary" onClick={() => navigate("/")}>Create New Story</Button>
+      </div>
 
       {error && (
         <Alert severity="error" className="mb-4">

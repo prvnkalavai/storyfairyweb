@@ -1,3 +1,4 @@
+# api/GetUserStories/__init__.py
 import logging
 import json
 import azure.functions as func
@@ -10,10 +11,8 @@ import os
 @require_auth
 async def main(req: func.HttpRequest) -> func.HttpResponse:
     try:
-        # Get user ID from auth claims
         claims = getattr(req, 'auth_claims')
         user_id = claims.get('sub') or claims.get('oid') or claims.get('name')
-        logging.info(f'User ID from auth claims: {user_id}')
 
         if not user_id:
             return func.HttpResponse(
@@ -22,36 +21,23 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
                 mimetype="application/json"
             )
 
-        # Get storage account name from environment variables
-        account_name = os.environ["ACCOUNT_NAME"]
-
-        # Create BlobServiceClient using managed identity
-        blob_service_url = f"https://{account_name}.blob.core.windows.net"
-        credential = DefaultAzureCredential()
-        blob_service_client = BlobServiceClient(blob_service_url, credential=credential)
-
-        # Get query parameters
+        # Initialize services
+        cosmos_service = CosmosService()
         page_size = int(req.params.get('pageSize', 10))
 
-        # Initialize CosmosService
-        cosmos_service = CosmosService()
+        # Get stories from Cosmos DB
+        result = await cosmos_service.get_user_stories(user_id=user_id, page_size=page_size)
 
-        # Get stories with pagination
-        result = await cosmos_service.get_user_stories(
-            user_id=user_id,
-            page_size=page_size
-        )
-
-        # Process each story to update image URLs
+        # Process stories to use direct blob URLs (no SAS tokens needed with managed identity)
         processed_stories = []
         for story in result["stories"]:
             cover_images = story.get("coverImages", {})
-            # Process front cover
             if cover_images.get("frontCover"):
                 front_url = cover_images["frontCover"].get("url")
                 if front_url:
-                    # Use direct blob URL since we have managed identity access
-                    cover_images["frontCover"]["url"] = front_url.split('?')[0]
+                    # Create API URL for image proxy
+                    blob_name = front_url.split("/")[-1]
+                    cover_images["frontCover"]["url"] = f"/api/blob/{blob_name}"
 
             processed_story = {
                 "id": story["id"],
@@ -62,13 +48,8 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
             }
             processed_stories.append(processed_story)
 
-        # Format response
-        response = {
-            "stories": processed_stories
-        }
-
         return func.HttpResponse(
-            json.dumps(response),
+            json.dumps({"stories": processed_stories}),
             status_code=200,
             mimetype="application/json"
         )
