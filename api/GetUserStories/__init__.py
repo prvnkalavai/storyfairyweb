@@ -37,7 +37,7 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
                 if front_url:
                     # Create API URL for image proxy
                     blob_name = front_url.split("/")[-1]
-                    cover_images["frontCover"]["url"] = f"/api/blob/{blob_name}"
+                    cover_images["frontCover"]["url"] = f"/api/blob/{blob_name}?container=storyfairy-images"
 
             processed_story = {
                 "id": story["id"],
