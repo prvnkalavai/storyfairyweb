@@ -13,22 +13,26 @@ class StaticWebAppCredential(TokenCredential):
         super().__init__()
         self.identity_endpoint = os.environ.get("IDENTITY_ENDPOINT")
         self.identity_header = os.environ.get("IDENTITY_HEADER")
-        logging.info(f"IDENTITY_ENDPOINT: {os.environ.get('IDENTITY_ENDPOINT')}")
-        logging.info(f"IDENTITY_HEADER: {os.environ.get('IDENTITY_HEADER')}")
 
     def get_token(self, *scopes, **kwargs):
         if not self.identity_endpoint or not self.identity_header:
             raise Exception("Identity endpoint or header not found")
 
         request = urllib.request.Request(
-            f"{self.identity_endpoint}?resource=https://storage.azure.com/",
-            headers={"X-IDENTITY-HEADER": self.identity_header}
+            f"{self.identity_endpoint}?api-version=2019-08-01&resource=https://storage.azure.com/",
+            headers={
+                "X-IDENTITY-HEADER": self.identity_header,
+                "Content-Type": "application/json"
+            }
         )
 
         try:
             response = urllib.request.urlopen(request)
             token_response = json.loads(response.read().decode())
-            return token_response
+            return {
+                "token": token_response["access_token"],
+                "expires_on": token_response.get("expires_on", 0)
+            }
         except Exception as e:
             logging.error(f"Error getting token: {str(e)}")
             raise
@@ -53,18 +57,23 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
         logging.info(f"Attempting to access blob: {blob_name} in container: {container_name}")
 
         try:
-            # Use StaticWebAppCredential instead of DefaultAzureCredential
             credential = StaticWebAppCredential()
-            blob_service_client = BlobServiceClient(
-                f"https://{account_name}.blob.core.windows.net",
-                credential=credential
-            )
+            logging.info("Created StaticWebAppCredential")
+
+            account_url = f"https://{account_name}.blob.core.windows.net"
+            logging.info(f"Creating BlobServiceClient with account URL: {account_url}")
+
+            blob_service_client = BlobServiceClient(account_url,credential=credential)
             logging.info("Successfully created BlobServiceClient")
+
+            # Test the connection
+            containers = list(blob_service_client.list_containers(max_results=1))
+            logging.info("Successfully listed containers")
+
         except Exception as auth_error:
-            logging.error(f"Authentication error: {str(auth_error)}")
-            return func.HttpResponse(
-                "Failed to authenticate with storage account",
-                status_code=500
+            logging.error(f"Authentication error details: {str(auth_error)}")
+            return func.HttpResponse(f"Failed to authenticate with storage account: {str(auth_error)}",
+            status_code=500
             )
 
         try:
