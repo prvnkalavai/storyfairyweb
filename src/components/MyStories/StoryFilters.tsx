@@ -1,5 +1,4 @@
 import React from 'react';
-import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { Dayjs } from 'dayjs';
@@ -16,20 +15,7 @@ interface StoryFiltersProps {
 }
 
 export const StoryFilters: React.FC<StoryFiltersProps> = ({ filters, onFilterChange }) => {
-  const handleFromDateChange = (newFromDate: Dayjs | null) => {
-    onFilterChange({ 
-      ...filters, 
-      dateRange: [newFromDate, filters.dateRange[1]] 
-    });
-  };
-
-  const handleToDateChange = (newToDate: Dayjs | null) => {
-    onFilterChange({ 
-      ...filters, 
-      dateRange: [filters.dateRange[0], newToDate] 
-    });
-  };
-
+  
   const handleSelectChange = (key: keyof Omit<StoryFiltersProps['filters'], 'dateRange'>) => 
     (e: React.ChangeEvent<HTMLSelectElement>) => {
       onFilterChange({ 
@@ -42,35 +28,6 @@ export const StoryFilters: React.FC<StoryFiltersProps> = ({ filters, onFilterCha
     <LocalizationProvider dateAdapter={AdapterDayjs}>
       <div className="bg-white shadow-md rounded-lg p-40">
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-          <div className="md:col-span-2 flex flex-col md:flex-row gap-4">
-            <div className="flex-1">
-              <DatePicker
-                label="From Date"
-                value={filters.dateRange[0]}
-                onChange={handleFromDateChange}
-                slots={{ textField: (props) => (
-                  <input 
-                    {...props} 
-                    className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                )}}
-              />
-            </div>
-            <div className="flex-1">
-              <DatePicker
-                label="To Date"
-                value={filters.dateRange[1]}
-                onChange={handleToDateChange}
-                slots={{ textField: (props) => (
-                  <input 
-                    {...props} 
-                    className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                )}}
-              />
-            </div>
-          </div>
-
           <div>
             <label htmlFor="story-length" className="block text-sm font-medium text-gray-700">
               Story Length
