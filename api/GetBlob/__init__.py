@@ -13,28 +13,50 @@ class StaticWebAppCredential(TokenCredential):
         super().__init__()
         self.identity_endpoint = os.environ.get("IDENTITY_ENDPOINT")
         self.identity_header = os.environ.get("IDENTITY_HEADER")
+        
+        # Log environment variables for debugging
+        logging.info(f"IDENTITY_ENDPOINT: {self.identity_endpoint}")
+        logging.info(f"IDENTITY_HEADER: {bool(self.identity_header)}")  # Log presence, not value
 
     def get_token(self, *scopes, **kwargs):
         if not self.identity_endpoint or not self.identity_header:
-            raise Exception("Identity endpoint or header not found")
+            error_msg = "Identity endpoint or header is missing. Check environment configuration."
+            logging.error(error_msg)
+            raise ValueError(error_msg)
+
+        # Explicitly log the scopes being requested
+        logging.info(f"Requesting token for scopes: {scopes}")
 
         request = urllib.request.Request(
             f"{self.identity_endpoint}?api-version=2019-08-01&resource=https://storage.azure.com/",
             headers={
                 "X-IDENTITY-HEADER": self.identity_header,
-                "Content-Type": "application/json"
+                "Content-Type": "application/x-www-form-urlencoded"
             }
         )
 
         try:
             response = urllib.request.urlopen(request)
             token_response = json.loads(response.read().decode())
+            
+            # Add extensive logging for token retrieval
+            logging.info("Token successfully retrieved")
+            logging.debug(f"Token expires on: {token_response.get('expires_on')}")
+
             return {
                 "token": token_response["access_token"],
                 "expires_on": token_response.get("expires_on", 0)
             }
+        except urllib.error.URLError as url_error:
+            # More detailed error logging
+            logging.error(f"URL Error during token retrieval: {url_error}")
+            logging.error(f"Error reason: {url_error.reason}")
+            raise
+        except json.JSONDecodeError as json_error:
+            logging.error(f"JSON Decode Error: {json_error}")
+            raise
         except Exception as e:
-            logging.error(f"Error getting token: {str(e)}")
+            logging.error(f"Unexpected error during token retrieval: {str(e)}")
             raise
 
 async def main(req: func.HttpRequest) -> func.HttpResponse:
