@@ -1,10 +1,37 @@
 # api/GetBlob/__init__.py
 import logging
 import azure.functions as func
-from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobServiceClient
+from azure.core.credentials import TokenCredential
 from azure.core.exceptions import ResourceNotFoundError
 import os
+import json
+import urllib.request
+
+class StaticWebAppCredential(TokenCredential):
+    def __init__(self):
+        super().__init__()
+        self.identity_endpoint = os.environ.get("IDENTITY_ENDPOINT")
+        self.identity_header = os.environ.get("IDENTITY_HEADER")
+        logging.info(f"IDENTITY_ENDPOINT: {os.environ.get('IDENTITY_ENDPOINT')}")
+        logging.info(f"IDENTITY_HEADER: {os.environ.get('IDENTITY_HEADER')}")
+
+    def get_token(self, *scopes, **kwargs):
+        if not self.identity_endpoint or not self.identity_header:
+            raise Exception("Identity endpoint or header not found")
+
+        request = urllib.request.Request(
+            f"{self.identity_endpoint}?resource=https://storage.azure.com/",
+            headers={"X-IDENTITY-HEADER": self.identity_header}
+        )
+
+        try:
+            response = urllib.request.urlopen(request)
+            token_response = json.loads(response.read().decode())
+            return token_response
+        except Exception as e:
+            logging.error(f"Error getting token: {str(e)}")
+            raise
 
 async def main(req: func.HttpRequest) -> func.HttpResponse:
     try:
@@ -25,9 +52,9 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
 
         logging.info(f"Attempting to access blob: {blob_name} in container: {container_name}")
 
-        # Initialize credentials with detailed logging
         try:
-            credential = DefaultAzureCredential(logging_enable=True)
+            # Use StaticWebAppCredential instead of DefaultAzureCredential
+            credential = StaticWebAppCredential()
             blob_service_client = BlobServiceClient(
                 f"https://{account_name}.blob.core.windows.net",
                 credential=credential
@@ -41,11 +68,9 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
             )
 
         try:
-            # Get blob client
             container_client = blob_service_client.get_container_client(container_name)
             blob_client = container_client.get_blob_client(blob_name)
 
-            # Verify blob exists
             if not blob_client.exists():
                 logging.warning(f"Blob {blob_name} not found")
                 return func.HttpResponse(
@@ -53,13 +78,11 @@ async def main(req: func.HttpRequest) -> func.HttpResponse:
                     status_code=404
                 )
 
-            # Download blob
             blob_data = blob_client.download_blob()
             content_type = blob_client.get_blob_properties().content_settings.content_type
 
             logging.info(f"Successfully retrieved blob: {blob_name}")
 
-            # Return blob content
             return func.HttpResponse(
                 blob_data.readall(),
                 mimetype=content_type
