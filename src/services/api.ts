@@ -21,8 +21,8 @@ export const generateStory = async (
   //  : '/api/GenerateStory';
 
   const baseUrl = localDev 
-    ? `http://localhost:7071/api/GenerateStory` 
-    : '/api/GenerateStory';
+    ? `${API_BASE_URL}/api/GenerateStory` 
+    : `${API_BASE_URL}/api/GenerateStory`;
 
   const queryParams = new URLSearchParams({
     topic: topic || '""',
@@ -41,8 +41,7 @@ export const generateStory = async (
     method: 'POST',
     headers: { 
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${accessToken}`,
-      'x-ms-token-aad-access-token': `Bearer ${accessToken}`
+      'X-My-Auth-Token': `Bearer ${accessToken}`
     }
   });
 
@@ -68,9 +67,8 @@ export const getUserStories = async (filters: any) => {
 
   const response = await fetch(`${API_BASE_URL}/api/stories?${queryParams}`, {
       headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-          'x-ms-token-aad-access-token': `Bearer ${token}`
+        'X-My-Auth-Token': `Bearer ${token}`,
+        'Content-Type': 'application/json'
       }
   });
 
@@ -78,7 +76,38 @@ export const getUserStories = async (filters: any) => {
       throw new Error('Failed to fetch stories');
   }
 
-  return response.json();
+  const data = await response.json();
+
+  // Process stories to load images
+  if (data.stories) {
+    const processedStories = await Promise.all(data.stories.map(async (story: any) => {
+    if (story.coverImages?.frontCover?.url) {
+      try {
+        console.log('Fetching image: ', story.coverImages.frontCover.url)
+        const imageResponse = await fetch(`${API_BASE_URL}`+story.coverImages.frontCover.url, {
+          headers: {
+            'X-My-Auth-Token': `Bearer ${token}`
+          }
+        });
+  
+        if (imageResponse.ok) {
+          // Convert blob to base64 or URL
+          const blob = await imageResponse.blob();
+          story.coverImages.frontCover.imageData = URL.createObjectURL(blob);
+        } else {
+          console.error(`Failed to fetch image for story ${story.id}`);
+        }
+      } catch (error) {
+        console.error(`Error fetching image for story ${story.id}:`, error);
+      }
+    }
+    return story;
+    }));
+  
+    data.stories = processedStories;
+  }
+  
+  return data;
 };
 
 export const deleteStory = async (storyId: string) => {
@@ -86,9 +115,8 @@ export const deleteStory = async (storyId: string) => {
   const response = await fetch(`${API_BASE_URL}/api/stories/${storyId}`, {
     method: 'DELETE',
     headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json',
-      'x-ms-token-aad-access-token': `Bearer ${token}`
+      'X-My-Auth-Token': `Bearer ${token}`,
+      'Content-Type': 'application/json'
     }
   });
 
@@ -98,3 +126,18 @@ export const deleteStory = async (storyId: string) => {
 
   return response.json();
 };
+
+export const getBlob = async (blobName: string, container: string = 'storyfairy-images') => {
+  const token = await getAuthToken();
+  const response = await fetch(`${API_BASE_URL}/api/blob/${blobName}?container=${container}`, {
+    headers: {
+      'X-My-Auth-Token': `Bearer ${token}`
+    }
+    });
+  
+    if (!response.ok) {
+      throw new Error('Failed to fetch blob');
+    }
+  
+    return response.blob();
+  };

@@ -12,6 +12,10 @@ export const StoryCard: React.FC<StoryCardProps> = ({ story, onDelete }) => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Get the image source - either imageData (blob URL) or fallback to original url
+  const imageSource = story.coverImages?.frontCover?.imageData || 
+                     story.coverImages?.frontCover?.url
+
   const handleDelete = async () => {
     try {
       setIsDeleting(true);
@@ -32,8 +36,8 @@ export const StoryCard: React.FC<StoryCardProps> = ({ story, onDelete }) => {
         {/* Cover Image */}
         <div className="h-48 w-full overflow-hidden">
           <img 
-            src={story.coverImages.frontCover.url} 
-            alt={story.title} 
+            src={imageSource}
+            alt={story.title}                         
             className="w-full h-full object-cover"
           />
         </div>
@@ -66,7 +70,7 @@ export const StoryCard: React.FC<StoryCardProps> = ({ story, onDelete }) => {
               <p className="text-gray-600 mb-6">
                 Are you sure you want to delete "{story.title}"? This action cannot be undone.
               </p>
-              
+
               <div className="flex justify-end space-x-2">
                 <button 
                   onClick={() => setDeleteDialogOpen(false)}

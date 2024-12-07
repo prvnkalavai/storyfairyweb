@@ -15,6 +15,7 @@ export interface Story {
       frontCover: {
         url: string;
         prompt: string;
+        imageData?: string;
       };
       backCover?: {
         url: string;

@@ -85,9 +85,8 @@ const handlePurchase = async (packageId: string) => {
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        'x-ms-token-aad-access-token': `Bearer ${token}`
+        'X-My-Auth-Token': `Bearer ${token}`,
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({ packageId: selectedPackage.stripePriceId })
     });

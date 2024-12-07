@@ -1,10 +1,8 @@
 {
     "routes": [
         {
-            "route": "/api/*",
-            "headers": {
-                "X-Ms-Skip-Routing-Config": "true"
-            }
+            "route": "api/*",
+            "allowedRoles": ["authenticated"]
         }
     ],
     "platform": {
@@ -13,5 +11,17 @@
     "navigationFallback": {
         "rewrite": "/index.html",
         "exclude": ["/.auth/*", "/api/*"]
+    },
+    "auth": {
+        "identityProviders": {
+            "azureActiveDirectory": {
+                "userDetailsClaim": "name",
+                "registration": {
+                    "openIdIssuer": "https://storyfairy.b2clogin.com/storyfairy.onmicrosoft.com/v2.0/.well-known/openid-configuration?p=B2C_1_Storyfairy_SUSI",
+                    "clientIdSettingName": "process.env.REACT_APP_B2C_CLIENT_ID",
+                    "clientSecretSettingName": "process.env.AZURE_CLIENT_SECRET"
+                }
+            }
+        }
     }
 }

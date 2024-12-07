@@ -6,15 +6,14 @@ console.log('API_BASE_URL:', API_BASE_URL);
 export const getUserCredits = async (): Promise<number> => {
     const token = await getAuthToken();
     const apiUrl = `${API_BASE_URL}/api/credits`;
-    //console.log('Calling API URL:', apiUrl);
+    console.log('Calling API URL:', apiUrl);
     //console.log('Token being passed as part of the authorization header in the api call:', token);
     try {
         const response = await fetch(apiUrl, {
             method: 'GET',
             headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
-                'x-ms-token-aad-access-token': `Bearer ${token}`
+                'X-My-Auth-Token': `Bearer ${token}`,
+                'Content-Type': 'application/json'
             }
         });
   
@@ -39,9 +38,8 @@ export const deductCredits = async (amount: number, description: string): Promis
   const response = await fetch(`${API_BASE_URL}/api/credits/deduct`, {
       method: 'POST',
       headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-          'x-ms-token-aad-access-token': `Bearer ${token}`
+        'X-My-Auth-Token': `Bearer ${token}`,
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({ amount, description })
   });
@@ -63,9 +61,8 @@ export const purchaseCredits = async (packageId: string): Promise<string> => {
     const response = await fetch(`${API_BASE_URL}/api/credits/purchase`, {
         method: 'POST',
         headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-            'x-ms-token-aad-access-token': `Bearer ${token}`
+            'X-My-Auth-Token': `Bearer ${token}`,
+            'Content-Type': 'application/json'
         },
         body: JSON.stringify({ packageId })
     });
@@ -83,9 +80,8 @@ export const getTransactionHistory = async (): Promise<any[]> => {
     const token = await getAuthToken();
     const response = await fetch(`${API_BASE_URL}/api/credits/history`, {
         headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-            'x-ms-token-aad-access-token': `Bearer ${token}`
+            'X-My-Auth-Token': `Bearer ${token}`,
+            'Content-Type': 'application/json'
         }
     });
   
