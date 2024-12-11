@@ -39,11 +39,11 @@ export const StoryDisplay: React.FC = () => {
   const navigate = useNavigate();
   const sliderRef = useRef<Slider>(null);
   const [currentSentenceIndex, setCurrentSentenceIndex] = useState(0);
-  const sentences = splitIntoSentences(storyData.StoryText);
+  const sentences = splitIntoSentences(storyData.storyText);
   const normalizedImageCount = Math.min(storyData.images.length, sentences.length);
   const images = storyData.images.slice(0, normalizedImageCount);
   const mountedRef = useRef(true);
-
+  
   const handleSentenceStart = useCallback((index: number) => {
     if (!mountedRef.current) {
       console.log("Component not mounted, ignoring sentence update");
@@ -53,7 +53,7 @@ export const StoryDisplay: React.FC = () => {
     setCurrentSentenceIndex(index);
     if (sliderRef.current) {
       const imageIndex = Math.min(index, images.length - 1);
-      //console.log("Updating slider to image ", imageIndex)
+      console.log("Updating slider to image ", imageIndex)
       sliderRef.current.slickGoTo(imageIndex);
     }
   }, [images.length]);
@@ -158,7 +158,7 @@ export const StoryDisplay: React.FC = () => {
       setIsSharing(false);
     }
   }, [pdfBlob, storyData.title, handleDownload, downloadFile]);
-
+  
   const sliderSettings = {
     dots: true,
     infinite: false,
@@ -190,17 +190,25 @@ export const StoryDisplay: React.FC = () => {
         />
 
         <div className="mt-4">
-          <Slider ref={sliderRef} {...sliderSettings}>
-            {images.map((image, index) => (
-              <div key={index} className="px-2">
+        <Slider ref={sliderRef} {...sliderSettings}>
+          {images.map((image, index) => (
+            <div key={index} className="px-2">
+              {image.imageUrl ? (
                 <img
                   src={image.imageUrl}
-                  alt={`Story illustration ${index + 1}`}
+                  alt={`Story illustration ${index + 1} - ${image.prompt}`}
                   className="w-full h-auto rounded-lg shadow-lg mx-auto object-contain max-h-[100vh]"
+                  onError={(e) => {
+                    console.error(`Failed to load image at index ${index}:`, image.imageUrl);
+                    e.currentTarget.style.display = 'none';
+                  }}
                 />
-              </div>
-            ))}
-          </Slider>
+              ) : (
+                <div className="text-red-500">No image available</div>
+              )}
+            </div>
+          ))}
+        </Slider>
         </div>
 
         <div className="mt-6 p-4 bg-purple-200 backdrop-blur-sm rounded-lg shadow-lg">

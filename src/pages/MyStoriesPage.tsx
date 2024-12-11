@@ -3,13 +3,13 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Alert, CircularProgress, Button } from '@mui/material';
 import { StoryGrid } from '../components/MyStories/StoryGrid';
 import { StoryFilters } from '../components/MyStories/StoryFilters';
-import { Story } from '../types/story';
+import { StoryData } from '../types';
 import { getUserStories } from '../services/api';
 import { Dayjs } from 'dayjs';
 import { useNavigate } from 'react-router-dom';
 
 export const MyStories: React.FC = () => {
-  const [stories, setStories] = useState<Story[]>([]);
+  const [stories, setStories] = useState<StoryData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState({
@@ -67,7 +67,6 @@ export const MyStories: React.FC = () => {
       )}
 
       <StoryFilters filters={filters} onFilterChange={handleFilterChange} />
-
       <StoryGrid stories={stories} onStoriesChange={setStories} />
     </div>
   );

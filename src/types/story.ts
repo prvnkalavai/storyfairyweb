@@ -22,6 +22,7 @@ export interface Story {
         prompt: string;
       };
     };
+    voiceName: string;
     createdAt: Date;
     metadata: {
       topic?: string;
@@ -30,7 +31,6 @@ export interface Story {
       storyModel: string;
       imageModel: string;
       storyStyle: string;
-      voiceName: string;
       creditsUsed: number;
     }
   }

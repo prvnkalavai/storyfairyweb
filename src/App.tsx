@@ -13,6 +13,8 @@ import { InteractionType } from '@azure/msal-browser';
 import { PaymentStatus } from './components/PaymentStatus';
 import { MyStories } from './pages/MyStoriesPage';
 import { AboutPage } from './pages/AboutPage';
+import { StoryViewerPage } from './components/MyStories/StoryViewerPage';
+
 
 const App: React.FC = () => {
     
@@ -53,6 +55,7 @@ const App: React.FC = () => {
                                 }
                             />
                             <Route path="/about" element={<AboutPage />} />
+                            <Route path="/story/:storyId" element={<StoryViewerPage />} />  
                         </Routes>
                     </div>
                 </div>

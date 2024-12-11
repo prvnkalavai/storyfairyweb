@@ -140,4 +140,76 @@ export const getBlob = async (blobName: string, container: string = 'storyfairy-
     }
   
     return response.blob();
-  };
+};
+
+export const getStoryById = async (storyId: string): Promise<StoryData> => {    
+  const token = await getAuthToken();    
+  const response = await fetch(`${API_BASE_URL}/api/stories/${storyId}`, {    
+    method: 'GET',    
+    headers: {    
+      'X-My-Auth-Token': `Bearer ${token}`,    
+      'Content-Type': 'application/json',    
+    },    
+  });    
+
+  if (!response.ok) {    
+    const errorText = await response.text();    
+    try {    
+      const errorJson = JSON.parse(errorText);    
+      throw new Error(errorJson.error || errorText);    
+    } catch (jsonError) {    
+      throw new Error(errorText || response.statusText);    
+    }    
+  }    
+
+  const data = await response.json();  
+
+  // Process images to load their content  
+  if (data.images) {  
+    const processedImages = await Promise.all(data.images.map(async (image: any) => {  
+      if (image.imageUrl) {  
+        try {  
+          const imageResponse = await fetch(`${API_BASE_URL}${image.imageUrl}`, {  
+            headers: {  
+              'X-My-Auth-Token': `Bearer ${token}`  
+            }  
+          });  
+
+          if (imageResponse.ok) {  
+            const blob = await imageResponse.blob();  
+            image.imageData = URL.createObjectURL(blob);  
+          }  
+        } catch (error) {  
+          console.error('Error fetching image:', error);  
+        }  
+      }  
+      return image;  
+    }));  
+    data.images = processedImages;  
+  }  
+
+  // Process cover images  
+  if (data.coverImages) {  
+    for (const coverType in data.coverImages) {  
+      const cover = data.coverImages[coverType];  
+      if (cover?.url) {  
+        try {  
+          const imageResponse = await fetch(`${API_BASE_URL}${cover.url}`, {  
+            headers: {  
+              'X-My-Auth-Token': `Bearer ${token}`  
+            }  
+          });  
+
+          if (imageResponse.ok) {  
+            const blob = await imageResponse.blob();  
+            cover.imageData = URL.createObjectURL(blob);  
+          }  
+        } catch (error) {  
+          console.error(`Error fetching ${coverType}:`, error);  
+        }  
+      }  
+    }  
+  }  
+
+  return data;    
+};  

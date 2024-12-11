@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { Story } from '../../types/story';
+import { StoryData } from '../../types';
 import { deleteStory } from '../../services/api';
 import { Trash2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';  
 
 interface StoryCardProps {
-  story: Story;
+  story: StoryData;
   onDelete: (storyId: string) => void;
 }
 
@@ -15,7 +16,7 @@ export const StoryCard: React.FC<StoryCardProps> = ({ story, onDelete }) => {
   // Get the image source - either imageData (blob URL) or fallback to original url
   const imageSource = story.coverImages?.frontCover?.imageData || 
                      story.coverImages?.frontCover?.url
-
+  const navigate = useNavigate();  
   const handleDelete = async () => {
     try {
       setIsDeleting(true);
@@ -29,41 +30,54 @@ export const StoryCard: React.FC<StoryCardProps> = ({ story, onDelete }) => {
     }
   };
 
+  const handleCardClick = () => {  
+    navigate(`/story/${story.id}`); 
+  };  
+
   return (
-    <div>
-      {/* Story Card */}
-      <div className="bg-white border rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300 overflow-hidden h-full flex flex-col relative">
-        {/* Cover Image */}
-        <div className="h-48 w-full overflow-hidden">
-          <img 
-            src={imageSource}
-            alt={story.title}                         
-            className="w-full h-full object-cover"
-          />
-        </div>
-
-        {/* Card Content */}
-        <div className="p-4 flex-grow flex flex-col">
-          <h2 className="text-lg font-semibold mb-2 line-clamp-2">
-            {story.title}
-          </h2>
-          <p className="text-sm text-gray-500">
-            Created: {new Date(story.createdAt).toLocaleDateString()}
-          </p>
-        </div>
-
-        {/* Delete Button */}
-        <button 
-          onClick={() => setDeleteDialogOpen(true)}
-          className="absolute top-2 right-2 bg-white/80 hover:bg-white/90 rounded-full p-2 shadow-sm transition-colors"
-        >
-          <Trash2 className="w-5 h-5 text-red-500" />
-        </button>
+    <div 
+    onClick={handleCardClick} 
+    className="cursor-pointer"
+  >
+    {/* Story Card */}
+    <div className="bg-white border rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300 overflow-hidden h-full flex flex-col relative">
+      {/* Cover Image */}
+      <div className="h-65 w-full overflow-hidden">
+        <img 
+          src={imageSource}
+          alt={story.title}                         
+          className="w-full h-full object-cover"
+        />
       </div>
+
+      {/* Card Content */}
+      <div className="p-4 flex-grow flex flex-col">
+        <h2 className="text-lg font-semibold mb-2 line-clamp-2">
+          {story.title}
+        </h2>
+        <p className="text-sm text-gray-500">
+          Created: {new Date(story.createdAt).toLocaleDateString()}
+        </p>
+      </div>
+
+      {/* Delete Button */}
+      <button 
+        onClick={(e) => {
+          e.stopPropagation(); // Add this
+          setDeleteDialogOpen(true);
+        }}
+        className="absolute top-2 right-2 bg-white/80 hover:bg-white/90 rounded-full p-2 shadow-sm transition-colors"
+      >
+        <Trash2 className="w-5 h-5 text-red-500" />
+      </button>
+    </div> 
 
       {/* Delete Confirmation Dialog */}
       {deleteDialogOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div 
+        onClick={(e) => e.stopPropagation()} // Add this to dialog background
+        className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+        >
           <div className="bg-white rounded-lg shadow-xl w-96 max-w-full">
             <div className="p-6">
               <h3 className="text-lg font-semibold mb-4">Delete Story</h3>
@@ -73,14 +87,20 @@ export const StoryCard: React.FC<StoryCardProps> = ({ story, onDelete }) => {
 
               <div className="flex justify-end space-x-2">
                 <button 
-                  onClick={() => setDeleteDialogOpen(false)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setDeleteDialogOpen(false);
+                  }}
                   disabled={isDeleting}
                   className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button 
-                  onClick={handleDelete}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDelete();
+                  }}
                   disabled={isDeleting}
                   className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 disabled:opacity-50"
                 >

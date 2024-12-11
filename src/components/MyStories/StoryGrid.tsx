@@ -1,10 +1,10 @@
 import React from 'react';
 import { StoryCard } from './StoryCard';
-import { Story } from '../../types/story';
+import { StoryData } from '../../types';
 
 interface StoryGridProps {
-  stories: Story[];
-  onStoriesChange: (stories: Story[]) => void;
+  stories: StoryData[];
+  onStoriesChange: (stories: StoryData[]) => void;
 }
 
 export const StoryGrid: React.FC<StoryGridProps> = ({ stories, onStoriesChange }) => {
