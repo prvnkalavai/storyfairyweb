@@ -1,26 +1,45 @@
-{
-  "compilerOptions": {
-    "target": "es2020",
-    "lib": [
-      "dom",
-      "dom.iterable",
-      "esnext"
-    ],
-    "allowJs": true,
-    "skipLibCheck": true,
-    "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true,
-    "strict": true,
-    "forceConsistentCasingInFileNames": true,
-    "noFallthroughCasesInSwitch": true,
-    "module": "esnext",
-    "moduleResolution": "node",
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "noEmit": true,
-    "jsx": "preserve"
-  },
-  "include": [
-    "src"
-  ]
-}
+{  
+  "compilerOptions": {  
+    "target": "es2020",  
+    "lib": ["dom", "dom.iterable", "esnext"],  
+    "allowJs": true,  
+    "skipLibCheck": true,  
+    "esModuleInterop": true,  
+    "allowSyntheticDefaultImports": true,  
+    "strict": true,  
+    "forceConsistentCasingInFileNames": true,  
+    "noFallthroughCasesInSwitch": true,  
+    "module": "esnext",  
+    "moduleResolution": "node",  
+    "resolveJsonModule": true,  
+    "isolatedModules": true,  
+    "noEmit": true,  
+    "jsx": "react-jsx",  
+    "types": [  
+      "node",  
+      "jest",  
+      "babel__core",  
+      "babel__generator",  
+      "babel__traverse",  
+      "bonjour",  
+      "estree",  
+      "graceful-fs",  
+      "http-errors",  
+      "json-schema",  
+      "q"  
+    ]  
+  },  
+  "include": [  
+    "src/**/*",  
+    "types/**/*"  
+  ],  
+  "exclude": [  
+    "node_modules",  
+    "build",  
+    "dist",  
+    "scripts",  
+    "acceptance-tests",  
+    "webpack",  
+    "jest"  
+  ]  
+}  

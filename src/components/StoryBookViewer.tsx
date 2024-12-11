@@ -6,7 +6,7 @@ import { usePdfGeneration } from '../hooks/usePdfGeneration';
 import { StoryData } from '../types';
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-  'pdfjs-dist/build/pdf.worker.min.mjs',
+  'pdfjs-dist/build/pdf.worker.min.js',
   import.meta.url,
 ).toString();
 
