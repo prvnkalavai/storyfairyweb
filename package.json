@@ -101,5 +101,11 @@
     "@types/react": "^18.0.0",  
     "@types/react-dom": "^18.0.0",  
     "typescript": "^4.9.0"  
+  },
+  "resolutions": {
+    "pdfjs-dist": "3.11.174"
+  },
+  "overrides": {
+    "pdfjs-dist": "3.11.174"
   }
 }
