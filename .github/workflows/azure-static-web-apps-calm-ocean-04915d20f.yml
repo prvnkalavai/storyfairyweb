@@ -54,6 +54,7 @@ jobs:
           REACT_APP_STRIPE_PUBLIC_KEY: ${{secrets.REACT_APP_STRIPE_PUBLIC_KEY}}
           REACT_APP_STRIPE_SECRET_KEY: ${{secrets.REACT_APP_STRIPE_SECRET_KEY}}
           REACT_APP_STRIPE_WEBHOOK_SECRET: ${{secrets.REACT_APP_STRIPE_WEBHOOK_SECRET}}
+          REACT_APP_STRIPE_SUBSCRIPTION_PRICE_ID: ${{secrets.REACT_APP_STRIPE_SUBSCRIPTION_PRICE_ID}}
 
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
