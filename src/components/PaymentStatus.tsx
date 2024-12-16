@@ -1,8 +1,9 @@
+// components/PaymentStatus.tsx
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Alert, CircularProgress, Box } from '@mui/material';
 import { getUserCredits } from '../services/creditService';
-
+import { useSubscription } from '../context/SubscriptionContext';
 export const PaymentStatus: React.FC = () => {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
@@ -10,6 +11,8 @@ export const PaymentStatus: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const status = searchParams.get('status');
     const sessionId = searchParams.get('session_id');
+    const { checkSubscription, subscription } = useSubscription();
+
 
     useEffect(() => {
         let timeoutId: NodeJS.Timeout;
@@ -31,16 +34,28 @@ export const PaymentStatus: React.FC = () => {
                             await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds before retry
                         }
                     }
+                    await checkSubscription()
 
                     // Force navigation after 5 seconds regardless of credit fetch status
                     timeoutId = setTimeout(() => {
-                        navigate('/', { 
+                      if(subscription.isSubscribed)
+                          navigate('/mystories', { 
                             state: { 
                                 paymentSuccess: true,
                                 sessionId 
                             },
                             replace: true // Use replace to prevent back navigation to payment status
-                        });
+                         });
+                      else{
+                        navigate('/', { 
+                          state: { 
+                              paymentSuccess: true,
+                              sessionId 
+                          },
+                          replace: true // Use replace to prevent back navigation to payment status
+                      });
+                      }
+                       
                     }, 5000);
 
                 } catch (error) {
@@ -75,7 +90,7 @@ export const PaymentStatus: React.FC = () => {
         return () => {
             if (timeoutId) clearTimeout(timeoutId);
         };
-    }, [status, sessionId, navigate]);
+    }, [status, sessionId, navigate, checkSubscription, subscription.isSubscribed]);
 
     return (
         <Box className="flex justify-center items-center min-h-screen">

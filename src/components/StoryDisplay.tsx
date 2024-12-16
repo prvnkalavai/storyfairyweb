@@ -9,6 +9,8 @@ import { usePdfGeneration } from '../hooks/usePdfGeneration';
 import { useAzureSpeech } from '../hooks/useAzureSpeech';
 import { canShare } from '../utils/sharing';
 import type { LocationState } from '../types';
+import { useSubscription } from '../context/SubscriptionContext';
+import { regenerateImage } from '../services/api';
 
 const splitIntoSentences = (text: string): string[] => {
   const exceptions = /(?:[A-Z][a-z]*\.|Mr\.|Mrs\.|Ms\.|Dr\.|Prof\.)/g;
@@ -43,7 +45,10 @@ export const StoryDisplay: React.FC = () => {
   const normalizedImageCount = Math.min(storyData.images.length, sentences.length);
   const images = storyData.images.slice(0, normalizedImageCount);
   const mountedRef = useRef(true);
-  
+  const { subscription } = useSubscription();
+  const [showRegenerateModal, setShowRegenerateModal] = useState(false);
+  const [regeneratingImage, setRegeneratingImage] = useState<number | null>(null);
+  const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
   const handleSentenceStart = useCallback((index: number) => {
     if (!mountedRef.current) {
       console.log("Component not mounted, ignoring sentence update");
@@ -158,6 +163,32 @@ export const StoryDisplay: React.FC = () => {
       setIsSharing(false);
     }
   }, [pdfBlob, storyData.title, handleDownload, downloadFile]);
+
+  const handleRegenerate = async (index: number) => {
+    if (!subscription.isSubscribed) return;
+
+    try {
+      setRegeneratingImage(index);
+      const { url } = await regenerateImage(
+        images[index].prompt,
+        storyData.metadata.imageStyle,
+        storyData.metadata.imageModel,
+        //referenceImageUrl
+      );
+
+      const newImages = [...images];
+      newImages[index] = {
+        ...newImages[index],
+        imageUrl: url
+      };
+      //setImages(newImages);
+    } catch (error) {
+      console.error('Failed to regenerate image:', error);
+      // Handle error (show notification, etc.)
+    } finally {
+      setRegeneratingImage(null);
+    }
+  };
   
   const sliderSettings = {
     dots: true,
@@ -192,7 +223,7 @@ export const StoryDisplay: React.FC = () => {
         <div className="mt-4">
         <Slider ref={sliderRef} {...sliderSettings}>
           {images.map((image, index) => (
-            <div key={index} className="px-2">
+            <div key={index} className="px-2 relative">
               {image.imageUrl ? (
                 <img
                   src={image.imageUrl}
@@ -203,12 +234,66 @@ export const StoryDisplay: React.FC = () => {
                     e.currentTarget.style.display = 'none';
                   }}
                 />
+                
               ) : (
                 <div className="text-red-500">No image available</div>
+              )}
+              {subscription.isSubscribed && (
+                <button
+                  onClick={() => handleRegenerate(index)}
+                  className="absolute top-2 right-2 bg-white/80 p-2 rounded-full shadow-md"
+                >
+                🔄
+                </button>
               )}
             </div>
           ))}
         </Slider>
+        {/* Image regeneration modal */}
+        {showRegenerateModal && regeneratingImage && selectedImageIndex !== null && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center">
+                    <div className="bg-white p-4 rounded-lg max-w-2xl">
+                        <h3 className="text-lg font-semibold mb-4">Choose an Image</h3>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="relative">
+                                <img
+                                    src={images[selectedImageIndex].imageUrl}
+                                    alt="Original"
+                                    className="rounded-lg"
+                                />
+                                <button
+                                    onClick={() => setShowRegenerateModal(false)}
+                                    className="absolute top-2 right-2 bg-green-500 text-white p-2 rounded-full"
+                                >
+                                    ✓
+                                </button>
+                            </div>
+                            <div className="relative">
+                                <img
+                                    //src={regeneratedImage}
+                                    alt="Regenerated"
+                                    className="rounded-lg"
+                                />
+                                <button
+                                    onClick={() => {
+                                        // Update the image in the story
+                                        const newImages = [...images];
+                                        newImages[selectedImageIndex] = {
+                                            ...newImages[selectedImageIndex],
+                                            //imageUrl: regeneratedImage
+                                        };
+                                        // Update your state/context with the new images
+                                        setShowRegenerateModal(false);
+                                    }}
+                                    className="absolute top-2 right-2 bg-green-500 text-white p-2 rounded-full"
+                                >
+                                    ✓
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
 
         <div className="mt-6 p-4 bg-purple-200 backdrop-blur-sm rounded-lg shadow-lg">

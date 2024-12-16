@@ -16,6 +16,7 @@ import HelpDialog from './HelpDialog';
 import { getUserCredits, deductCredits } from '../services/creditService';
 import { STORY_CREDIT_COSTS, CREDIT_PACKAGES } from '../constants/credits';
 import { ConfirmationDialog, PurchaseDialog } from './CreditDialogs';
+import { useSubscription } from '../context/SubscriptionContext';
 
 export const StoryGenerator: React.FC = () => {
   const [topic, setTopic] = useState('');
@@ -48,6 +49,9 @@ export const StoryGenerator: React.FC = () => {
   const location = useLocation();
   const [musicPlayer, setMusicPlayer] = useState<Howl | null>(null);
   const [isMusicPlaying, setIsMusicPlaying] = useState(false);
+  const { subscription } = useSubscription();
+  const [referenceImage, setReferenceImage ] = useState<File | null>(null);
+
 
   useEffect(() => {
     // Initialize music player on component mount
@@ -270,6 +274,8 @@ export const StoryGenerator: React.FC = () => {
     setDialogContent({ title, content });
     setOpenHelpDialog(true);
   };
+
+  
 
   const isButtonDisabled = !isAuthenticated || isLoading || inProgress !== InteractionStatus.None;
   
@@ -541,6 +547,34 @@ export const StoryGenerator: React.FC = () => {
         )} credits)`}
       </Button>
     </div>
+    {subscription.isSubscribed && (
+      <div className="p-6 bg-white/60 backdrop-blur-sm rounded-lg shadow-lg mt-4">
+          <h3 className="text-lg font-semibold mb-2">Personalize Your Story</h3>
+          <p className="text-sm text-gray-600 mb-4">
+              Upload a photo to make your child the hero of the story!
+          </p>
+          <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                      setReferenceImage(file);
+                  }
+              }}
+              className="w-full"
+          />
+          {referenceImage && (
+              <div className="mt-4">
+                  <img
+                      src={URL.createObjectURL(referenceImage)}
+                      alt="Preview"
+                      className="max-w-xs mx-auto rounded-lg"
+                  />
+              </div>
+          )}
+      </div>
+    )}
   </div>
   <ConfirmationDialog
     open={showConfirmDialog}

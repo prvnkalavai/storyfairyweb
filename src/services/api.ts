@@ -213,3 +213,70 @@ export const getStoryById = async (storyId: string): Promise<StoryData> => {
 
   return data;    
 };  
+
+
+export const createSubscription = async () => {
+  const token = await getAuthToken();
+  const response = await fetch(`${API_BASE_URL}/api/subscribe`, {
+    method: 'POST',
+    headers: {
+      'X-My-Auth-Token': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to create subscription');
+  }
+
+  const data = await response.json();
+  return data.sessionUrl;
+};
+
+export const uploadReferenceImage = async (file: File) => {
+  const token = await getAuthToken();
+  const formData = new FormData();
+  formData.append('image', file);
+
+  const response = await fetch(`${API_BASE_URL}/api/upload-reference-image`, {
+    method: 'POST',
+    headers: {
+      'X-My-Auth-Token': `Bearer ${token}`
+    },
+    body: formData
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to upload image');
+  }
+
+  return response.json();
+};
+
+export const regenerateImage = async (
+  prompt: string,
+  imageStyle: string,
+  imageModel: string,
+  referenceImageUrl?: string
+) => {
+  const token = await getAuthToken();
+  const response = await fetch(`${API_BASE_URL}/api/regenerate-image`, {
+    method: 'POST',
+    headers: {
+      'X-My-Auth-Token': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      prompt,
+      imageStyle,
+      imageModel,
+      referenceImageUrl
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to regenerate image');
+  }
+
+  return response.json();
+};

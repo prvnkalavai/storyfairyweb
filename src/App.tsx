@@ -9,17 +9,16 @@ import { AuthenticationModal } from './components/AuthenticationModal';
 import AnimatedBackground from './components/AnimatedBackground';
 import { msalInstance } from './authConfig';
 import { InteractionType } from '@azure/msal-browser';
-
+import { SubscriptionProvider } from './context/SubscriptionContext';
 import { PaymentStatus } from './components/PaymentStatus';
 import { MyStories } from './pages/MyStoriesPage';
 import { AboutPage } from './pages/AboutPage';
 import { StoryViewerPage } from './components/MyStories/StoryViewerPage';
 
-
 const App: React.FC = () => {
-    
     return (
         <MsalProvider instance={msalInstance}>
+            <SubscriptionProvider>
             <Router>
                 <div className="min-h-screen relative">
                     <AnimatedBackground />
@@ -27,7 +26,24 @@ const App: React.FC = () => {
                         <Header />
                         <AuthenticationModal />
                         <Routes>
-                            <Route path="/" element={<StoryGenerator />} />
+                            {/* AboutPage is now the default home page */}
+                            <Route path="/" element={<AboutPage />} />
+                            
+                            {/* StoryGenerator route is now protected */}
+                            <Route 
+                                path="/story-generator" 
+                                element={
+                                    <MsalAuthenticationTemplate
+                                        interactionType={InteractionType.Redirect}
+                                        authenticationRequest={{ scopes: [] }}
+                                        errorComponent={ErrorComponent}
+                                        loadingComponent={LoadingComponent}
+                                    >
+                                        <StoryGenerator />
+                                    </MsalAuthenticationTemplate>
+                                } 
+                            />
+                            
                             <Route
                                 path="/story"
                                 element={
@@ -60,6 +76,7 @@ const App: React.FC = () => {
                     </div>
                 </div>
             </Router>
+            </SubscriptionProvider>
         </MsalProvider>
     );
 };
