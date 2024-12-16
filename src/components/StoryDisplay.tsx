@@ -48,7 +48,7 @@ export const StoryDisplay: React.FC = () => {
   const { subscription } = useSubscription();
   const [showRegenerateModal, setShowRegenerateModal] = useState(false);
   const [regeneratingImage, setRegeneratingImage] = useState<number | null>(null);
-  const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
+  const [selectedImageIndex] = useState<number | null>(null);
   const handleSentenceStart = useCallback((index: number) => {
     if (!mountedRef.current) {
       console.log("Component not mounted, ignoring sentence update");
