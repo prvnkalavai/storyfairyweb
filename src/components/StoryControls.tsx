@@ -24,14 +24,14 @@ export const StoryControls: React.FC<StoryControlsProps> = ({
   disabled,
   loadingAudio = false,
 }) => (
-    <div className="grid grid-cols-2 gap-2 lg:grid-cols-4 mb-4">
+  <div className="grid grid-cols-2 gap-2 lg:grid-cols-4 mb-4">
     <button
       onClick={onNewStory}
       className="flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-blue-400"
     >
       Generate New
     </button>
-    
+
     <button
       onClick={onNarration}
       disabled={disabled || loadingAudio}

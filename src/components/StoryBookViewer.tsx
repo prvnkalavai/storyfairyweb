@@ -22,46 +22,46 @@ export const StoryBookViewer: React.FC<StoryBookViewerProps> = ({ story }) => {
   const [pageWidth, setPageWidth] = useState(400);
   const containerRef = React.useRef<HTMLDivElement>(null);
   const generationRef = useRef(false);
-  const pdfUrlRef = useRef<string | null>(null); 
+  const pdfUrlRef = useRef<string | null>(null);
 
-  useEffect(() => {  
-    let mounted = true;   
-    const generatePdf = async () => {  
-        console.log("Current state of generationRef: ", generationRef.current)
-        // Check if we've already generated for this story  
-        if (generationRef.current) return;  
-        generationRef.current = true;  
-        console.log("generationRef set to True")
-        try {               
-            const pdf = await generateStoryBook();  
-            if (pdf && mounted) {  
-                // Cleanup previous URL if it exists  
-                if (pdfUrlRef.current) {  
-                    URL.revokeObjectURL(pdfUrlRef.current);  
-                }  
+  useEffect(() => {
+    let mounted = true;
+    const generatePdf = async () => {
+      console.log("Current state of generationRef: ", generationRef.current)
+      // Check if we've already generated for this story  
+      if (generationRef.current) return;
+      generationRef.current = true;
+      console.log("generationRef set to True")
+      try {
+        const pdf = await generateStoryBook();
+        if (pdf && mounted) {
+          // Cleanup previous URL if it exists  
+          if (pdfUrlRef.current) {
+            URL.revokeObjectURL(pdfUrlRef.current);
+          }
 
-                const newUrl = URL.createObjectURL(pdf);  
-                pdfUrlRef.current = newUrl;  
-                setPdfUrl(newUrl);  
-            }  
-        } catch (error) {  
-            console.error('Error generating PDF:', error);  
-        }  
-    };  
-    console.log("generating story book"); 
-    generatePdf();  
-    
+          const newUrl = URL.createObjectURL(pdf);
+          pdfUrlRef.current = newUrl;
+          setPdfUrl(newUrl);
+        }
+      } catch (error) {
+        console.error('Error generating PDF:', error);
+      }
+    };
+    console.log("generating story book");
+    generatePdf();
+
     // Cleanup function  
-    return () => {    
-        mounted = false;    
-        if (pdfUrlRef.current) {    
-            URL.revokeObjectURL(pdfUrlRef.current);  
-            pdfUrlRef.current = null;  
-        }    
-        generationRef.current = false;  
-        console.log("generationRef set to False")  
-    };   
-}, [story.id, generateStoryBook]); 
+    return () => {
+      mounted = false;
+      if (pdfUrlRef.current) {
+        URL.revokeObjectURL(pdfUrlRef.current);
+        pdfUrlRef.current = null;
+      }
+      generationRef.current = false;
+      console.log("generationRef set to False")
+    };
+  }, [story.id, generateStoryBook]);
 
   // Responsive page width
   useEffect(() => {
@@ -125,7 +125,7 @@ export const StoryBookViewer: React.FC<StoryBookViewerProps> = ({ story }) => {
   }
 
   return (
-    <div 
+    <div
       ref={containerRef}
       className="relative w-full h-[600px] flex justify-center items-center"
       onTouchStart={handleTouchStart}
@@ -139,20 +139,20 @@ export const StoryBookViewer: React.FC<StoryBookViewerProps> = ({ story }) => {
         <div className="flex items-center justify-center">
           {/* Left Page */}
           {pageNumber > 0 && numPages && pageNumber <= numPages && (
-            <div 
+            <div
               className="relative mr-4 cursor-pointer"
               onClick={() => handleCornerClick('left')}
             >
-              <Page 
-                pageNumber={pageNumber} 
+              <Page
+                pageNumber={pageNumber}
                 width={pageWidth}
                 renderTextLayer={false}
                 renderAnnotationLayer={false}
               />
               <div className="absolute bottom-0 right-0 w-12 h-12 opacity-30 hover:opacity-50">
                 <svg viewBox="0 0 24 24" className="text-gray-500">
-                  <path 
-                    fill="currentColor" 
+                  <path
+                    fill="currentColor"
                     d="M15.41 16.59L10.83 12l4.58-4.59L14 6l-6 6 6 6z"
                   />
                 </svg>
@@ -162,20 +162,20 @@ export const StoryBookViewer: React.FC<StoryBookViewerProps> = ({ story }) => {
 
           {/* Right Page */}
           {numPages && pageNumber + 1 <= numPages && (
-            <div 
+            <div
               className="relative ml-4 cursor-pointer"
               onClick={() => handleCornerClick('right')}
             >
-              <Page 
-                pageNumber={pageNumber + 1} 
+              <Page
+                pageNumber={pageNumber + 1}
                 width={pageWidth}
                 renderTextLayer={false}
                 renderAnnotationLayer={false}
               />
               <div className="absolute bottom-0 left-0 w-12 h-12 opacity-30 hover:opacity-50">
                 <svg viewBox="0 0 24 24" className="text-gray-500">
-                  <path 
-                    fill="currentColor" 
+                  <path
+                    fill="currentColor"
                     d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6z"
                   />
                 </svg>

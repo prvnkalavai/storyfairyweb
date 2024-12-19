@@ -8,24 +8,24 @@ import { StoryControls } from './StoryControls';
 import { usePdfGeneration } from '../hooks/usePdfGeneration';
 import { useAzureSpeech } from '../hooks/useAzureSpeech';
 import { canShare } from '../utils/sharing';
-import type { LocationState } from '../types';
+import type { LocationState, StoryData } from '../types';
 import { useSubscription } from '../context/SubscriptionContext';
-import { regenerateImage } from '../services/api';
+import { regenerateImage, getStoryById } from '../services/api';
 
 const splitIntoSentences = (text: string): string[] => {
   const exceptions = /(?:[A-Z][a-z]*\.|Mr\.|Mrs\.|Ms\.|Dr\.|Prof\.)/g;
   let processedText = text;
   const foundExceptions: string[] = [];
   let match;
-  
+
   while ((match = exceptions.exec(text)) !== null) {
     const placeholder = `__EXC${foundExceptions.length}__`;
     foundExceptions.push(match[0]);
     processedText = processedText.replace(match[0], placeholder);
   }
-  
+
   const sentences = processedText.split(/(?<=[.!?])\s+/);
-  
+
   return sentences.map(sentence => {
     let restoredSentence = sentence;
     foundExceptions.forEach((exc, i) => {
@@ -43,18 +43,17 @@ export const StoryDisplay: React.FC = () => {
   const [currentSentenceIndex, setCurrentSentenceIndex] = useState(0);
   const sentences = splitIntoSentences(storyData.storyText);
   const normalizedImageCount = Math.min(storyData.images.length, sentences.length);
-  const images = storyData.images.slice(0, normalizedImageCount);
+  const [images, setImages] = useState(storyData.images.slice(0, normalizedImageCount));
   const mountedRef = useRef(true);
   const { subscription } = useSubscription();
-  const [showRegenerateModal, setShowRegenerateModal] = useState(false);
-  const [regeneratingImage, setRegeneratingImage] = useState<number | null>(null);
-  const [selectedImageIndex] = useState<number | null>(null);
+  const storyRef = useRef<StoryData | null>(storyData);
+
   const handleSentenceStart = useCallback((index: number) => {
     if (!mountedRef.current) {
       console.log("Component not mounted, ignoring sentence update");
       return;
     }
-    
+
     setCurrentSentenceIndex(index);
     if (sliderRef.current) {
       const imageIndex = Math.min(index, images.length - 1);
@@ -78,10 +77,10 @@ export const StoryDisplay: React.FC = () => {
   });
 
   const { pdfBlob, generateStoryBook } = usePdfGeneration(storyData);
-  
+
   useEffect(() => {
     mountedRef.current = true;
-    
+
     return () => {
       mountedRef.current = false;
       cleanupSpeech();
@@ -146,8 +145,8 @@ export const StoryDisplay: React.FC = () => {
         return;
       }
 
-      const file = new File([pdfBlob], `${storyData.title}.pdf`, { 
-        type: 'application/pdf' 
+      const file = new File([pdfBlob], `${storyData.title}.pdf`, {
+        type: 'application/pdf'
       });
 
       await navigator.share({
@@ -163,33 +162,41 @@ export const StoryDisplay: React.FC = () => {
       setIsSharing(false);
     }
   }, [pdfBlob, storyData.title, handleDownload, downloadFile]);
+  const fetchStory = async (id: string) => {
+    try {
+      const fetchedStory = await getStoryById(id);
+      if (fetchedStory) {
+        setImages(fetchedStory.images)
+        storyRef.current = fetchedStory
+      }
+    } catch (error) {
+      console.error('Error fetching story:', error);
+    }
+  };
 
   const handleRegenerate = async (index: number) => {
     if (!subscription.isSubscribed) return;
 
     try {
-      setRegeneratingImage(index);
       const { url } = await regenerateImage(
         images[index].prompt,
         storyData.metadata.imageStyle,
         storyData.metadata.imageModel,
-        //referenceImageUrl
+        storyData.id,
+        index
       );
-
       const newImages = [...images];
       newImages[index] = {
         ...newImages[index],
         imageUrl: url
       };
-      //setImages(newImages);
+      setImages(newImages);
+      await fetchStory(storyData.id);
     } catch (error) {
       console.error('Failed to regenerate image:', error);
-      // Handle error (show notification, etc.)
-    } finally {
-      setRegeneratingImage(null);
     }
   };
-  
+
   const sliderSettings = {
     dots: true,
     infinite: false,
@@ -221,91 +228,45 @@ export const StoryDisplay: React.FC = () => {
         />
 
         <div className="mt-4">
-        <Slider ref={sliderRef} {...sliderSettings}>
-          {images.map((image, index) => (
-            <div key={index} className="px-2 relative">
-              {image.imageUrl ? (
-                <img
-                  src={image.imageUrl}
-                  alt={`Story illustration ${index + 1} - ${image.prompt}`}
-                  className="w-full h-auto rounded-lg shadow-lg mx-auto object-contain max-h-[100vh]"
-                  onError={(e) => {
-                    console.error(`Failed to load image at index ${index}:`, image.imageUrl);
-                    e.currentTarget.style.display = 'none';
-                  }}
-                />
-                
-              ) : (
-                <div className="text-red-500">No image available</div>
-              )}
-              {subscription.isSubscribed && (
-                <button
-                  onClick={() => handleRegenerate(index)}
-                  className="absolute top-2 right-2 bg-white/80 p-2 rounded-full shadow-md"
-                >
-                🔄
-                </button>
-              )}
-            </div>
-          ))}
-        </Slider>
-        {/* Image regeneration modal */}
-        {showRegenerateModal && regeneratingImage && selectedImageIndex !== null && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center">
-                    <div className="bg-white p-4 rounded-lg max-w-2xl">
-                        <h3 className="text-lg font-semibold mb-4">Choose an Image</h3>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="relative">
-                                <img
-                                    src={images[selectedImageIndex].imageUrl}
-                                    alt="Original"
-                                    className="rounded-lg"
-                                />
-                                <button
-                                    onClick={() => setShowRegenerateModal(false)}
-                                    className="absolute top-2 right-2 bg-green-500 text-white p-2 rounded-full"
-                                >
-                                    ✓
-                                </button>
-                            </div>
-                            <div className="relative">
-                                <img
-                                    //src={regeneratedImage}
-                                    alt="Regenerated"
-                                    className="rounded-lg"
-                                />
-                                <button
-                                    onClick={() => {
-                                        // Update the image in the story
-                                        const newImages = [...images];
-                                        newImages[selectedImageIndex] = {
-                                            ...newImages[selectedImageIndex],
-                                            //imageUrl: regeneratedImage
-                                        };
-                                        // Update your state/context with the new images
-                                        setShowRegenerateModal(false);
-                                    }}
-                                    className="absolute top-2 right-2 bg-green-500 text-white p-2 rounded-full"
-                                >
-                                    ✓
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
+          <Slider ref={sliderRef} {...sliderSettings}>
+            {images.map((image, index) => (
+              <div key={index} className="px-2 relative">
+                {image.imageUrl || image.imageData ? (
+                  <div className="relative">
+                    <img
+                      src={image.imageData || image.imageUrl}
+                      alt={`Story illustration ${index + 1} - ${image.prompt}`}
+                      className="w-full h-auto rounded-lg shadow-lg mx-auto object-contain max-h-[100vh]"
+                      onError={(e) => {
+                        console.error(`Failed to load image at index ${index}:`, image.imageUrl);
+                        e.currentTarget.style.display = 'none';
+                      }}
+                    />
+                    {subscription.isSubscribed && (
+                      <button
+                        onClick={() => handleRegenerate(index)}
+                        className="absolute top-2 right-2 bg-white/80 p-2 rounded-full shadow-md"
+                      >
+                        🔄
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-red-500">No image available</div>
+                )}
+              </div>
+            ))}
+          </Slider>
         </div>
-
         <div className="mt-6 p-4 bg-purple-200 backdrop-blur-sm rounded-lg shadow-lg">
           <Typography variant="body1" className="text-lg leading-relaxed text-justify">
             {sentences.map((sentence, index) => (
               <span
                 key={index}
-                className={`${
-                  index === currentSentenceIndex && isPlaying
-                    ? 'bg-purple-300'
-                    : ''
-                } transition-colors duration-200`}
+                className={`${index === currentSentenceIndex && isPlaying
+                  ? 'bg-purple-300'
+                  : ''
+                  } transition-colors duration-200`}
               >
                 {sentence}{' '}
               </span>
@@ -313,6 +274,6 @@ export const StoryDisplay: React.FC = () => {
           </Typography>
         </div>
       </div>
-    </div>
+    </div >
   );
 };

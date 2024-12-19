@@ -19,63 +19,63 @@ const App: React.FC = () => {
     return (
         <MsalProvider instance={msalInstance}>
             <SubscriptionProvider>
-            <Router>
-                <div className="min-h-screen relative">
-                    <AnimatedBackground />
-                    <div className="relative z-10">
-                        <Header />
-                        <AuthenticationModal />
-                        <Routes>
-                            {/* AboutPage is now the default home page */}
-                            <Route path="/" element={<AboutPage />} />
-                            
-                            {/* StoryGenerator route is now protected */}
-                            <Route 
-                                path="/story-generator" 
-                                element={
-                                    <MsalAuthenticationTemplate
-                                        interactionType={InteractionType.Redirect}
-                                        authenticationRequest={{ scopes: [] }}
-                                        errorComponent={ErrorComponent}
-                                        loadingComponent={LoadingComponent}
-                                    >
-                                        <StoryGenerator />
-                                    </MsalAuthenticationTemplate>
-                                } 
-                            />
-                            
-                            <Route
-                                path="/story"
-                                element={
-                                    <MsalAuthenticationTemplate
-                                        interactionType={InteractionType.Redirect}
-                                        authenticationRequest={{ scopes: [] }}
-                                        errorComponent={ErrorComponent}
-                                        loadingComponent={LoadingComponent}
-                                    >
-                                        <StoryDisplay />
-                                    </MsalAuthenticationTemplate>
-                                }
-                            />
-                            <Route path="/payment-status" element={<PaymentStatus />} />
-                            
-                            <Route
-                                path="/mystories"
-                                element={
-                                    <MsalAuthenticationTemplate
-                                        interactionType={InteractionType.Redirect}
-                                        authenticationRequest={{ scopes: [] }}
-                                    >
-                                        <MyStories/>
-                                    </MsalAuthenticationTemplate>
-                                }
-                            />
-                            <Route path="/about" element={<AboutPage />} />
-                            <Route path="/story/:storyId" element={<StoryViewerPage />} />  
-                        </Routes>
+                <Router>
+                    <div className="min-h-screen relative">
+                        <AnimatedBackground />
+                        <div className="relative z-10">
+                            <Header />
+                            <AuthenticationModal />
+                            <Routes>
+                                {/* AboutPage is now the default home page */}
+                                <Route path="/" element={<AboutPage />} />
+
+                                {/* StoryGenerator route is now protected */}
+                                <Route
+                                    path="/story-generator"
+                                    element={
+                                        <MsalAuthenticationTemplate
+                                            interactionType={InteractionType.Redirect}
+                                            authenticationRequest={{ scopes: [] }}
+                                            errorComponent={ErrorComponent}
+                                            loadingComponent={LoadingComponent}
+                                        >
+                                            <StoryGenerator />
+                                        </MsalAuthenticationTemplate>
+                                    }
+                                />
+
+                                <Route
+                                    path="/story"
+                                    element={
+                                        <MsalAuthenticationTemplate
+                                            interactionType={InteractionType.Redirect}
+                                            authenticationRequest={{ scopes: [] }}
+                                            errorComponent={ErrorComponent}
+                                            loadingComponent={LoadingComponent}
+                                        >
+                                            <StoryDisplay />
+                                        </MsalAuthenticationTemplate>
+                                    }
+                                />
+                                <Route path="/payment-status" element={<PaymentStatus />} />
+
+                                <Route
+                                    path="/mystories"
+                                    element={
+                                        <MsalAuthenticationTemplate
+                                            interactionType={InteractionType.Redirect}
+                                            authenticationRequest={{ scopes: [] }}
+                                        >
+                                            <MyStories />
+                                        </MsalAuthenticationTemplate>
+                                    }
+                                />
+                                <Route path="/about" element={<AboutPage />} />
+                                <Route path="/story/:storyId" element={<StoryViewerPage />} />
+                            </Routes>
+                        </div>
                     </div>
-                </div>
-            </Router>
+                </Router>
             </SubscriptionProvider>
         </MsalProvider>
     );
@@ -95,7 +95,7 @@ function ErrorComponent({ error }: { error: any }) {
                 return `Authentication failed: ${error.message}`;
         }
     };
-    
+
     return (
         <div className="error-container">
             <h3>Authentication Error</h3>

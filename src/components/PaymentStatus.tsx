@@ -38,32 +38,32 @@ export const PaymentStatus: React.FC = () => {
 
                     // Force navigation after 5 seconds regardless of credit fetch status
                     timeoutId = setTimeout(() => {
-                      if(subscription.isSubscribed)
-                          navigate('/mystories', { 
-                            state: { 
-                                paymentSuccess: true,
-                                sessionId 
-                            },
-                            replace: true // Use replace to prevent back navigation to payment status
-                         });
-                      else{
-                        navigate('/', { 
-                          state: { 
-                              paymentSuccess: true,
-                              sessionId 
-                          },
-                          replace: true // Use replace to prevent back navigation to payment status
-                      });
-                      }
-                       
+                        if (subscription.isSubscribed)
+                            navigate('/mystories', {
+                                state: {
+                                    paymentSuccess: true,
+                                    sessionId
+                                },
+                                replace: true // Use replace to prevent back navigation to payment status
+                            });
+                        else {
+                            navigate('/', {
+                                state: {
+                                    paymentSuccess: true,
+                                    sessionId
+                                },
+                                replace: true // Use replace to prevent back navigation to payment status
+                            });
+                        }
+
                     }, 5000);
 
                 } catch (error) {
                     console.error('Error in payment status:', error);
                     setError('Failed to verify payment status. You will be redirected shortly.');
                     timeoutId = setTimeout(() => {
-                        navigate('/', { 
-                            state: { 
+                        navigate('/', {
+                            state: {
                                 paymentError: 'Payment completed but failed to update credits. Please contact support.',
                                 sessionId
                             },
@@ -73,9 +73,9 @@ export const PaymentStatus: React.FC = () => {
                 }
             } else if (status === 'cancelled') {
                 timeoutId = setTimeout(() => {
-                    navigate('/', { 
-                        state: { 
-                            paymentCancelled: true 
+                    navigate('/', {
+                        state: {
+                            paymentCancelled: true
                         },
                         replace: true
                     });
