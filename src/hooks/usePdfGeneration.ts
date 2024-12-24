@@ -69,7 +69,7 @@ export const usePdfGeneration = (storyData: StoryData) => {
 
       // Cover page - try imageData first, fall back to URL  
       const frontCover = storyData.coverImages.frontCover;
-      const frontCoverImageSource = frontCover?.imageData || frontCover?.url;
+      const frontCoverImageSource = frontCover?.imageData ;
       if (frontCoverImageSource) {
         console.log("adding front cover image to pdf", frontCoverImageSource)
         await addImageToPdf(frontCoverImageSource, 0, 0, pageWidth, pageHeight);
@@ -104,7 +104,7 @@ export const usePdfGeneration = (storyData: StoryData) => {
         // Right page (image) - try imageData first, fall back to imageUrl  
         if (imageData) {
           doc.addPage();
-          const imageSource = imageData.imageData || imageData.imageUrl;
+          const imageSource = imageData.imageData ;
           if (imageSource) {
             console.log("adding image[i] to pdf", imageSource)
             await addImageToPdf(imageSource, 0, 0, pageWidth, pageHeight);
@@ -115,7 +115,7 @@ export const usePdfGeneration = (storyData: StoryData) => {
       // Rear cover page - try imageData first, fall back to URL  
       doc.addPage();
       const backCover = storyData.coverImages.backCover;
-      const rearCoverImageSource = backCover?.imageData || backCover?.url;
+      const rearCoverImageSource = backCover?.imageData ;
       if (rearCoverImageSource) {
         console.log("adding rear cover image to pdf", rearCoverImageSource)
         await addImageToPdf(rearCoverImageSource, 0, 0, pageWidth, pageHeight);

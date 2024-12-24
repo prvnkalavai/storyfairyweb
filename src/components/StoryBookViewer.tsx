@@ -127,7 +127,7 @@ export const StoryBookViewer: React.FC<StoryBookViewerProps> = ({ story }) => {
   return (
     <div
       ref={containerRef}
-      className="relative w-full h-[600px] flex justify-center items-center"
+      className="relative w-full h-[600px] flex justify-center items-center p-40"
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
     >

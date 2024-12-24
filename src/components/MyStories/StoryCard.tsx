@@ -62,6 +62,7 @@ export const StoryCard: React.FC<StoryCardProps> = ({ story, onDelete }) => {
 
       {/* Delete Button */}
       <button 
+        title="Delete Story"
         onClick={(e) => {
           e.stopPropagation(); // Add this
           setDeleteDialogOpen(true);

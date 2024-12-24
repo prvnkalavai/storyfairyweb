@@ -10,22 +10,22 @@ import { useAzureSpeech } from '../hooks/useAzureSpeech';
 import { canShare } from '../utils/sharing';
 import type { LocationState, StoryData } from '../types';
 import { useSubscription } from '../context/SubscriptionContext';
-import { regenerateImage, getStoryById } from '../services/api';
+import { regenerateImage, getStoryById, getBlob } from '../services/api';
 
 const splitIntoSentences = (text: string): string[] => {
   const exceptions = /(?:[A-Z][a-z]*\.|Mr\.|Mrs\.|Ms\.|Dr\.|Prof\.)/g;
   let processedText = text;
   const foundExceptions: string[] = [];
   let match;
-
+  
   while ((match = exceptions.exec(text)) !== null) {
     const placeholder = `__EXC${foundExceptions.length}__`;
     foundExceptions.push(match[0]);
     processedText = processedText.replace(match[0], placeholder);
   }
-
+  
   const sentences = processedText.split(/(?<=[.!?])\s+/);
-
+  
   return sentences.map(sentence => {
     let restoredSentence = sentence;
     foundExceptions.forEach((exc, i) => {
@@ -43,17 +43,17 @@ export const StoryDisplay: React.FC = () => {
   const [currentSentenceIndex, setCurrentSentenceIndex] = useState(0);
   const sentences = splitIntoSentences(storyData.storyText);
   const normalizedImageCount = Math.min(storyData.images.length, sentences.length);
-  const [images, setImages] = useState(storyData.images.slice(0, normalizedImageCount));
-  const mountedRef = useRef(true);
-  const { subscription } = useSubscription();
-  const storyRef = useRef<StoryData | null>(storyData);
+    const [images, setImages] = useState(storyData.images.slice(0, normalizedImageCount));
+    const mountedRef = useRef(true);
+    const { subscription } = useSubscription();
+    const storyRef = useRef<StoryData | null>(storyData);
 
   const handleSentenceStart = useCallback((index: number) => {
     if (!mountedRef.current) {
       console.log("Component not mounted, ignoring sentence update");
       return;
     }
-
+    
     setCurrentSentenceIndex(index);
     if (sliderRef.current) {
       const imageIndex = Math.min(index, images.length - 1);
@@ -75,12 +75,12 @@ export const StoryDisplay: React.FC = () => {
     onSentenceStart: handleSentenceStart,
     isMounted: mountedRef
   });
-
+    
   const { pdfBlob, generateStoryBook } = usePdfGeneration(storyData);
-
+  
   useEffect(() => {
     mountedRef.current = true;
-
+    
     return () => {
       mountedRef.current = false;
       cleanupSpeech();
@@ -145,8 +145,8 @@ export const StoryDisplay: React.FC = () => {
         return;
       }
 
-      const file = new File([pdfBlob], `${storyData.title}.pdf`, {
-        type: 'application/pdf'
+      const file = new File([pdfBlob], `${storyData.title}.pdf`, { 
+        type: 'application/pdf' 
       });
 
       await navigator.share({
@@ -162,17 +162,18 @@ export const StoryDisplay: React.FC = () => {
       setIsSharing(false);
     }
   }, [pdfBlob, storyData.title, handleDownload, downloadFile]);
-  const fetchStory = async (id: string) => {
-    try {
-      const fetchedStory = await getStoryById(id);
-      if (fetchedStory) {
-        setImages(fetchedStory.images)
-        storyRef.current = fetchedStory
-      }
-    } catch (error) {
-      console.error('Error fetching story:', error);
-    }
-  };
+   const fetchStory = async (id: string) => {
+        try {
+            const fetchedStory = await getStoryById(id);
+             if(fetchedStory){
+                setImages(fetchedStory.images)
+                 storyRef.current = fetchedStory;
+            }
+        } catch (error) {
+            console.error('Error fetching story:', error);
+        }
+    };
+   
 
   const handleRegenerate = async (index: number) => {
     if (!subscription.isSubscribed) return;
@@ -185,18 +186,19 @@ export const StoryDisplay: React.FC = () => {
         storyData.id,
         index
       );
-      const newImages = [...images];
-      newImages[index] = {
-        ...newImages[index],
-        imageUrl: url
-      };
-      setImages(newImages);
+       const newImages = [...images];
+        newImages[index] = {
+           ...newImages[index],
+           imageUrl: url
+         };
+        setImages([...newImages]);
       await fetchStory(storyData.id);
+
     } catch (error) {
       console.error('Failed to regenerate image:', error);
     }
   };
-
+  
   const sliderSettings = {
     dots: true,
     infinite: false,
@@ -207,6 +209,28 @@ export const StoryDisplay: React.FC = () => {
     arrows: true,
     swipe: !isPlaying,
   };
+    useEffect(() => {
+            const loadImages = async () => {
+                const processImage = async (image: any) => {
+                    if (image.imageData) return image;
+                    if (image.imageUrl) {
+                         try {
+                             const blobName = image.imageUrl.split('/')[3].split('?')[0];
+                            const blob = await getBlob(blobName, 'storyfairy-images');
+                            return { ...image, imageData: URL.createObjectURL(blob) };
+                        } catch (e) {
+                            return image;
+                        }
+                    }
+                    return image;
+                };
+               const processedImages = await Promise.all(images.map(processImage));
+               setImages(processedImages);
+            };
+
+           loadImages()
+        },[images]);
+
 
   return (
     <div className="w-full min-h-screen pt-40 px-4 md:px-8">
@@ -231,14 +255,14 @@ export const StoryDisplay: React.FC = () => {
           <Slider ref={sliderRef} {...sliderSettings}>
             {images.map((image, index) => (
               <div key={index} className="px-2 relative">
-                {image.imageUrl || image.imageData ? (
+                {image.imageData ? (
                   <div className="relative">
                     <img
-                      src={image.imageData || image.imageUrl}
+                      src={image.imageData }
                       alt={`Story illustration ${index + 1} - ${image.prompt}`}
                       className="w-full h-auto rounded-lg shadow-lg mx-auto object-contain max-h-[100vh]"
                       onError={(e) => {
-                        console.error(`Failed to load image at index ${index}:`, image.imageUrl);
+                        console.error(`Failed to load image at index ${index}:`, image.imageData);
                         e.currentTarget.style.display = 'none';
                       }}
                     />
@@ -258,6 +282,7 @@ export const StoryDisplay: React.FC = () => {
             ))}
           </Slider>
         </div>
+
         <div className="mt-6 p-4 bg-purple-200 backdrop-blur-sm rounded-lg shadow-lg">
           <Typography variant="body1" className="text-lg leading-relaxed text-justify">
             {sentences.map((sentence, index) => (
