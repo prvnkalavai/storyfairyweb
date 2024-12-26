@@ -8,7 +8,7 @@ import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { generateStory } from '../services/api';
 import { InteractionStatus, InteractionRequiredAuthError } from '@azure/msal-browser';
 import { useMsal, useIsAuthenticated } from '@azure/msal-react';
-import { IMAGE_STYLES, STORY_LENGTHS, STORY_MODELS, IMAGE_MODELS, STORY_STYLES, VOICES } from '../constants/config';
+import { IMAGE_STYLES, STORY_LENGTHS, STORY_MODELS, IMAGE_MODELS, STORY_THEMES, VOICES } from '../constants/config';
 import { tokenRequest } from '../authConfig';
 import InfoIcon from '@mui/icons-material/Info';
 import IconButton from '@mui/material/IconButton';
@@ -24,7 +24,7 @@ export const StoryGenerator: React.FC = () => {
   const [imageStyle, setImageStyle] = useState(IMAGE_STYLES.WHIMSICAL);
   const [storyModel, setStoryModel] = useState(STORY_MODELS.GEMINI_1_5_FLASH);
   const [imageModel, setImageModel] = useState(IMAGE_MODELS.FLUX_SCHNELL);
-  const [storyStyle, setStoryStyle] = useState(STORY_STYLES.ADVENTURE);
+  const [storyTheme, setStoryTheme] = useState(STORY_THEMES.ADVENTURE);
   const [voiceName, setVoiceName] = useState<typeof VOICES[keyof typeof VOICES]>(VOICES.Ava_US);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -173,7 +173,7 @@ export const StoryGenerator: React.FC = () => {
       }
       //console.log('Token response:', tokenResponse);
 
-      const storyData = await generateStory(topic, storyLength, imageStyle, storyModel, imageModel, storyStyle, voiceName, tokenResponse.accessToken);
+      const storyData = await generateStory(topic, storyLength, imageStyle, storyModel, imageModel, storyTheme, voiceName, tokenResponse.accessToken);
 
       // Deduct credits immediately after successful generation
       const requiredCredits = getRequiredCredits(storyLength.toUpperCase() as keyof typeof STORY_CREDIT_COSTS);
@@ -475,17 +475,17 @@ export const StoryGenerator: React.FC = () => {
           </IconButton>
         </FormControl>
         <FormControl fullWidth margin="normal">
-          <InputLabel id="story-style-label">Story Style</InputLabel>
+          <InputLabel id="story-theme-label">Story Theme</InputLabel>
           <Select
-            labelId="story-style-label"
-            id="story-style"
-            value={storyStyle}
-            label="story Style"
+            labelId="story-theme-label"
+            id="story-theme"
+            value={storyTheme}
+            label="story Theme"
             onChange={(e: SelectChangeEvent<"adventure">) =>
-              setStoryStyle(e.target.value as "adventure")
+              setStoryTheme(e.target.value as "adventure")
             }
           >
-            {Object.entries(STORY_STYLES).map(([key, value]) => (
+            {Object.entries(STORY_THEMES).map(([key, value]) => (
               <MenuItem key={value} value={value}>
                 {key
                   .split("_")
@@ -553,6 +553,7 @@ export const StoryGenerator: React.FC = () => {
               Upload a photo to make your child the hero of the story!
             </p>
             <input
+              title ="image"
               type="file"
               accept="image/*"
               onChange={(e) => {

@@ -11,7 +11,7 @@ export const generateStory = async (
   imageStyle: string,
   storyModel: string,
   imageModel: string,
-  storyStyle: string,
+  storyTheme: string,
   voiceName: string,
   accessToken: string
 ): Promise<StoryData> => {
@@ -30,7 +30,7 @@ export const generateStory = async (
     imageStyle,
     storyModel,
     imageModel,
-    storyStyle,
+    storyTheme,
     voiceName
   });
 

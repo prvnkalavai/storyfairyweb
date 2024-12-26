@@ -30,7 +30,7 @@ export interface Story {
       imageStyle: string;
       storyModel: string;
       imageModel: string;
-      storyStyle: string;
+      storyTheme: string;
       creditsUsed: number;
     }
   }
