@@ -17,15 +17,15 @@ const splitIntoSentences = (text: string): string[] => {
   let processedText = text;
   const foundExceptions: string[] = [];
   let match;
-  
+
   while ((match = exceptions.exec(text)) !== null) {
     const placeholder = `__EXC${foundExceptions.length}__`;
     foundExceptions.push(match[0]);
     processedText = processedText.replace(match[0], placeholder);
   }
-  
+
   const sentences = processedText.split(/(?<=[.!?])\s+/);
-  
+
   return sentences.map(sentence => {
     let restoredSentence = sentence;
     foundExceptions.forEach((exc, i) => {
@@ -43,17 +43,17 @@ export const StoryDisplay: React.FC = () => {
   const [currentSentenceIndex, setCurrentSentenceIndex] = useState(0);
   const sentences = splitIntoSentences(storyData.storyText);
   const normalizedImageCount = Math.min(storyData.images.length, sentences.length);
-    const [images, setImages] = useState(storyData.images.slice(0, normalizedImageCount));
-    const mountedRef = useRef(true);
-    const { subscription } = useSubscription();
-    const storyRef = useRef<StoryData | null>(storyData);
+  const [images, setImages] = useState(storyData.images.slice(0, normalizedImageCount));
+  const mountedRef = useRef(true);
+  const { subscription } = useSubscription();
+  const storyRef = useRef<StoryData | null>(storyData);
 
   const handleSentenceStart = useCallback((index: number) => {
     if (!mountedRef.current) {
       console.log("Component not mounted, ignoring sentence update");
       return;
     }
-    
+
     setCurrentSentenceIndex(index);
     if (sliderRef.current) {
       const imageIndex = Math.min(index, images.length - 1);
@@ -75,12 +75,12 @@ export const StoryDisplay: React.FC = () => {
     onSentenceStart: handleSentenceStart,
     isMounted: mountedRef
   });
-    
+
   const { pdfBlob, generateStoryBook } = usePdfGeneration(storyData);
-  
+
   useEffect(() => {
     mountedRef.current = true;
-    
+
     return () => {
       mountedRef.current = false;
       cleanupSpeech();
@@ -102,7 +102,7 @@ export const StoryDisplay: React.FC = () => {
 
   const handleNewStory = useCallback(async () => {
     stop();
-    navigate('/');
+    navigate('/story-generator');
   }, [stop, navigate]);
 
   const downloadFile = useCallback((blob: Blob) => {
@@ -145,8 +145,8 @@ export const StoryDisplay: React.FC = () => {
         return;
       }
 
-      const file = new File([pdfBlob], `${storyData.title}.pdf`, { 
-        type: 'application/pdf' 
+      const file = new File([pdfBlob], `${storyData.title}.pdf`, {
+        type: 'application/pdf'
       });
 
       await navigator.share({
@@ -162,23 +162,27 @@ export const StoryDisplay: React.FC = () => {
       setIsSharing(false);
     }
   }, [pdfBlob, storyData.title, handleDownload, downloadFile]);
-   const fetchStory = async (id: string) => {
-        try {
-            const fetchedStory = await getStoryById(id);
-             if(fetchedStory){
-                setImages(fetchedStory.images)
-                 storyRef.current = fetchedStory;
-            }
-        } catch (error) {
-            console.error('Error fetching story:', error);
-        }
-    };
-   
+
+  const fetchStory = async (id: string) => {
+    try {
+      console.log("fetching the story data again with refreshed images")
+      const fetchedStory = await getStoryById(id);
+      console.log("fetched story: ", fetchedStory)
+      if (fetchedStory) {
+        setImages(fetchedStory.images)
+        storyRef.current = fetchedStory;
+      }
+    } catch (error) {
+      console.error('Error fetching story:', error);
+    }
+  };
+
 
   const handleRegenerate = async (index: number) => {
     if (!subscription.isSubscribed) return;
 
     try {
+      console.log("regenerating image..")
       const { url } = await regenerateImage(
         images[index].prompt,
         storyData.metadata.imageStyle,
@@ -186,19 +190,20 @@ export const StoryDisplay: React.FC = () => {
         storyData.id,
         index
       );
-       const newImages = [...images];
-        newImages[index] = {
-           ...newImages[index],
-           imageUrl: url
-         };
-        setImages([...newImages]);
+      console.log("Regenerated Image URL: ", url)
+      const newImages = [...images];
+      newImages[index] = {
+        ...newImages[index],
+        imageUrl: url
+      };
+      setImages([...newImages]);
       await fetchStory(storyData.id);
 
     } catch (error) {
       console.error('Failed to regenerate image:', error);
     }
   };
-  
+
   const sliderSettings = {
     dots: true,
     infinite: false,
@@ -209,27 +214,27 @@ export const StoryDisplay: React.FC = () => {
     arrows: true,
     swipe: !isPlaying,
   };
-    useEffect(() => {
-            const loadImages = async () => {
-                const processImage = async (image: any) => {
-                    if (image.imageData) return image;
-                    if (image.imageUrl) {
-                         try {
-                             const blobName = image.imageUrl.split('/')[3].split('?')[0];
-                            const blob = await getBlob(blobName, 'storyfairy-images');
-                            return { ...image, imageData: URL.createObjectURL(blob) };
-                        } catch (e) {
-                            return image;
-                        }
-                    }
-                    return image;
-                };
-               const processedImages = await Promise.all(images.map(processImage));
-               setImages(processedImages);
-            };
+  useEffect(() => {
+    const loadImages = async () => {
+      const processImage = async (image: any) => {
+        if (image.imageData) return image;
+        if (image.imageUrl) {
+          try {
+            const blobName = image.imageUrl.split('/')[3].split('?')[0];
+            const blob = await getBlob(blobName, 'storyfairy-images');
+            return { ...image, imageData: URL.createObjectURL(blob) };
+          } catch (e) {
+            return image;
+          }
+        }
+        return image;
+      };
+      const processedImages = await Promise.all(images.map(processImage));
+      setImages(processedImages);
+    };
 
-           loadImages()
-        },[images]);
+    loadImages()
+  }, [images]);
 
 
   return (
@@ -258,7 +263,7 @@ export const StoryDisplay: React.FC = () => {
                 {image.imageData ? (
                   <div className="relative">
                     <img
-                      src={image.imageData }
+                      src={image.imageData}
                       alt={`Story illustration ${index + 1} - ${image.prompt}`}
                       className="w-full h-auto rounded-lg shadow-lg mx-auto object-contain max-h-[100vh]"
                       onError={(e) => {
