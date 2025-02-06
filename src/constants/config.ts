@@ -32,8 +32,8 @@ export const STORY_MODELS = {
 export const IMAGE_MODELS = {
   FLUX_SCHNELL: 'flux_schnell',
   STABLE_DIFFUSION_3: 'stable_diffusion_3',
-  FLUX_PRO: 'flux_pro'
-  //IMAGEN_3: 'imagen_3'
+  FLUX_PRO: 'flux_pro',
+  IMAGEN_3: 'imagen_3'
 } as const;
 
 export const STORY_THEMES = {
